@@ -1,5 +1,24 @@
 # 구현 현황 문서
 
+## 📚 문서 역할 구분
+
+이 폴더(`docs/`)에는 프로젝트의 다양한 측면을 다루는 문서들이 있습니다:
+
+| 문서 | 역할 | 용도 |
+|------|------|------|
+| **IMPLEMENTATION_STATUS.md** | 구현 현황 및 완료 작업 | 현재 구현된 기능, 완료된 작업, 다음 단계 |
+| **IMPLEMENTATION_RESEARCH.md** | 연구 및 설계 방향 | 이론적 배경, 연구 방향, 방법론 |
+| **IMPLEMENTATION_FILE_STRUCTURE.md** | 파일 구조 설계 | 모듈 구조, 파일별 역할, 의존성 |
+| **LABELING_SYSTEM_DESIGN.md** | 라벨링 시스템 설계 | Label 체계, 분류 로직, 라우팅 |
+
+**이 문서(IMPLEMENTATION_STATUS.md)**는 **현재 구현 현황**을 추적하는 문서입니다.
+- ✅ 완료된 작업 목록
+- 📋 다음 단계 (미구현 항목)
+- 🧪 테스트 방법
+- 📊 우선순위 요약
+
+---
+
 ## 작업 완료 현황
 
 ### Phase 1: Baseline 규칙 추출 및 모듈 독립화 ✅
@@ -23,18 +42,25 @@
 **역할**: 욕설 감지 통합 인터페이스
 
 **구현 내용**:
-- Korcen 필터 통합 준비 (현재는 Baseline만 사용)
+- Korcen 필터 통합 완료 ✅
 - Baseline 규칙 통합
 - `detect()` 메서드로 통합 인터페이스 제공
+- 폴백 메커니즘 구현 (Korcen 실패 시 Baseline으로 전환)
 
 **주요 기능**:
 ```python
+# Korcen 사용
+detector = ProfanityDetector(use_korcen=True)
+result = detector.detect("시발놈아")
+# ProfanityResult(is_profanity=True, category="PROFANITY", confidence=0.8, method="korcen")
+
+# Baseline만 사용
 detector = ProfanityDetector(use_korcen=False)
 result = detector.detect("욕설이 포함된 텍스트")
 # ProfanityResult(is_profanity=True, category="PROFANITY", confidence=0.65, method="baseline")
 ```
 
-**상태**: ✅ 구현 완료 (Korcen 통합은 향후 구현 예정)
+**상태**: ✅ 구현 완료 (Korcen 통합 완료)
 
 ---
 
@@ -110,6 +136,12 @@ result = pipeline.process(
      - 세션 생성/관리
      - 맥락 저장/조회
 
+5. **Korcen 필터** ✅
+   - `profanity_filter/korcen_filter.py`
+     - 경량화된 Korcen 필터 구현
+     - 레벨-카테고리 매핑
+     - Baseline 규칙과 통합
+
 ---
 
 ## 현재 구조
@@ -125,7 +157,8 @@ linguaproject/logic_classify_system/
 ├── profanity_filter/
 │   ├── __init__.py ✅
 │   ├── baseline_rules.py ✅
-│   └── profanity_detector.py ✅ (메인 모듈 1)
+│   ├── korcen_filter.py ✅ (Phase 5.1 완료)
+│   └── profanity_detector.py ✅ (메인 모듈 1, Korcen 통합 완료)
 ├── intent_classifier/
 │   ├── __init__.py ✅
 │   ├── baseline_rules.py ✅
@@ -188,15 +221,22 @@ linguaproject/logic_classify_system/
 
 ### Phase 5: 모델 통합 🔴 **최우선**
 
-#### 5.1 Korcen 필터 통합
-- [ ] `profanity_filter/korcen_filter.py` - Korcen 필터 구현
-  - Korcen 라이브러리 통합
-  - Tokenization 단계 명시적 구현
-  - `ProfanityDetector`와 통합
-- [ ] Korcen 라이브러리 설치 및 테스트
-- [ ] Baseline 규칙과의 폴백 메커니즘 검증
+#### 5.1 Korcen 필터 통합 ✅ **완료**
+- [x] `profanity_filter/korcen_filter.py` - Korcen 필터 구현
+  - Korcen 원본 파일 경량화
+  - 레벨-카테고리 매핑 구현
+  - 전화 상담 맥락 최적화
+  - `ProfanityDetector`와 통합 완료
+- [x] Baseline 규칙과의 통합 (위협 표현 추가 감지)
+- [x] 호환성 검증 완료
 
-**예상 소요**: 2-3일
+**완료 일시**: 2024년 (현재 시점)
+
+**구현 내용**:
+- 경량화된 Korcen 필터 구현 (핵심 기능만 추출)
+- 레벨-카테고리 매핑: general/minor → PROFANITY, sexual → SEXUAL_HARASSMENT, belittle/parent → INSULT, race/politics → HATE_SPEECH
+- Baseline 규칙과 통합: 위협 표현(VIOLENCE_THREAT)은 Baseline 규칙에서 우선 감지
+- 신뢰도 계산: 레벨별 가중치 적용, 다중 레벨 감지 시 신뢰도 증가
 
 #### 5.2 KoSentenceBERT 모델 통합
 - [ ] `models/kosentbert_model.py` - 모델 래퍼 구현
@@ -280,7 +320,7 @@ linguaproject/logic_classify_system/
 
 | 우선순위 | 항목 | 예상 소요 | 중요도 |
 |---------|------|----------|--------|
-| 🔴 최우선 | Korcen 필터 통합 | 2-3일 | 높음 |
+| ✅ 완료 | Korcen 필터 통합 | 완료 | 높음 |
 | 🔴 최우선 | KoSentenceBERT 모델 통합 | 5-7일 | 높음 |
 | 🟡 높음 | 평가 프레임워크 고도화 | 4-5일 | 중간 |
 | 🟡 높음 | 실시간 알림 시스템 | 3-4일 | 중간 |
@@ -376,7 +416,7 @@ Confidence: 0.7
 - 지원 모듈 구현 완료 ✅
 - 메인 모듈 테스트 검증 완료 ✅
 
-### Phase 4 완료 (현재)
+### Phase 4 완료 (이전)
 - 추가 모듈 3개 설계 및 구현 완료 ✅
   - `labeling/label_router.py` ✅
   - `evaluation/normal_label_evaluator.py` ✅
@@ -387,6 +427,15 @@ Confidence: 0.7
   - `filtering/event_generator.py` ✅
   - `filtering/alert_system.py` ✅
 - 추가 모듈 테스트 검증 완료 ✅
+
+### Phase 5.1 완료 (현재)
+- Korcen 필터 통합 완료 ✅
+  - `profanity_filter/korcen_filter.py` 구현 완료
+  - 경량화된 Korcen 필터 (핵심 기능만 추출)
+  - 레벨-카테고리 매핑 구현
+  - Baseline 규칙과 통합 (위협 표현 추가 감지)
+  - `ProfanityDetector`와 통합 완료
+  - 호환성 검증 완료
 
 **최종 업데이트**: 2024년 (현재 시점)
 

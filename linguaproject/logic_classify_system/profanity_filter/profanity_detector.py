@@ -22,14 +22,16 @@ class ProfanityDetector:
         self.use_korcen = use_korcen
         self.korcen_filter = None
         
-        # Korcen 필터 초기화 (향후 구현)
+        # Korcen 필터 초기화
         if use_korcen:
             try:
-                # from profanity_filter.korcen_filter import KorcenFilter
-                # self.korcen_filter = KorcenFilter()
-                pass
-            except ImportError:
-                print("Warning: Korcen 필터를 로드할 수 없습니다. Baseline 규칙만 사용합니다.")
+                from .korcen_filter import KorcenFilter
+                self.korcen_filter = KorcenFilter()
+            except ImportError as e:
+                print(f"Warning: Korcen 필터를 로드할 수 없습니다. Baseline 규칙만 사용합니다. ({e})")
+                self.use_korcen = False
+            except Exception as e:
+                print(f"Warning: Korcen 필터 초기화 중 오류 발생: {e}. Baseline 규칙만 사용합니다.")
                 self.use_korcen = False
         
         # Baseline 규칙은 모듈 내부에 포함 (의존성 없음)
