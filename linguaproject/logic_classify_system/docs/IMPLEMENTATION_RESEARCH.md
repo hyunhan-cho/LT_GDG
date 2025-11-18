@@ -1,5 +1,17 @@
 # 전화상담 품질 관리 시스템 구현 연구
 
+## 📚 문서 역할
+
+**이 문서(IMPLEMENTATION_RESEARCH.md)**는 **연구 및 설계 방향**을 다루는 문서입니다.
+- 이론적 배경 및 연구 방향
+- 방법론 및 접근 방식
+- 데이터셋 분석 계획
+- 시스템 아키텍처 설계
+
+**구현 현황**은 `IMPLEMENTATION_STATUS.md`를 참조하세요.
+
+---
+
 ## 1. 전반적인 설계 방향 변경
 
 ### 1.1 목적 재정의
@@ -440,33 +452,8 @@ Sentence-level Detection = 의존 구문 분석 (구조) + 문장 임베딩 (의
 └─────────────────────────────────────────────────────────┘
 ```
 
-### 5.2 파일 구조
 
-```
-linguaproject/logic_classify_system/
-├── classification_criteria.py          # 분류 기준 정의 (기존)
-├── signal_detection/
-│   ├── word_level_detector.py          # 단어 단위 신호 포착
-│   ├── sentence_level_detector.py      # 문장 단위 신호 포착
-│   ├── dialogue_level_detector.py      # 대화 단위 신호 포착
-│   └── ensemble_classifier.py          # 통합 분류기
-├── quality_assessment/
-│   ├── customer_satisfaction.py         # 고객 만족도 평가
-│   ├── agent_performance.py            # 상담원 대응 평가
-│   ├── dialogue_efficiency.py           # 대화 효율성 평가
-│   └── overall_scorer.py                # 종합 점수 계산
-├── feedback_system/
-│   ├── realtime_alert.py                # 실시간 알림
-│   ├── report_generator.py              # 리포트 생성
-│   └── coaching_suggestions.py           # 코칭 제안
-├── data_processing/
-│   ├── analyze_ethics_dataset.py        # 윤리검증 데이터셋 분석
-│   ├── convert_ethics_dataset.py        # 데이터 변환
-│   └── dataset_validator.py             # 데이터 검증
-└── IMPLEMENTATION_RESEARCH.md           # 본 문서
-```
-
-### 5.3 구현 우선순위
+### 5.2 구현 우선순위
 
 **1단계 (즉시)**: 
 - 윤리검증 데이터셋 구조 분석
