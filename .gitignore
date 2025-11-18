@@ -267,3 +267,15 @@ poetry.toml
 pyrightconfig.json
 
 # End of https://www.toptal.com/developers/gitignore/api/django,python
+
+### Project Specific ###
+# logic_classify_system - legacy and personal folders
+# These folders contain legacy code and personal development documents
+# that should not be tracked in version control
+linguaproject/logic_classify_system/legacy/
+linguaproject/logic_classify_system/personal/
+
+# Markdown files - ignore all .md files except those in docs/ folders
+# Only documentation in docs/ folders should be tracked
+*.md
+!**/docs/**/*.md
