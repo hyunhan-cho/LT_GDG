@@ -46,6 +46,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'logical_analysis',
     'emotion_analysis',
+    'audio_process',
 ]
 
 MIDDLEWARE = [

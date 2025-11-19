@@ -1,42 +1,44 @@
+# logical_analysis/admin.py
 from django.contrib import admin
+from django.db.models import Count, Q
 from .models import AnalysisSession, ClassificationResult
+
+class ClassificationResultInline(admin.TabularInline):
+    model = ClassificationResult
+    extra = 0
+    readonly_fields = ('created_at', 'timestamp')
+    can_delete = False
+    fields = ('text', 'label', 'label_type', 'confidence', 'action', 'alert_level', 'created_at')
+    ordering = ('created_at',)
 
 @admin.register(AnalysisSession)
 class AnalysisSessionAdmin(admin.ModelAdmin):
-    """
-    분석 세션 정보 관리
-    """
-    list_display = ('session_id', 'created_at')
+    list_display = ('session_id', 'sentence_count', 'risk_summary', 'created_at')
     search_fields = ('session_id',)
+    inlines = [ClassificationResultInline]
+
+    def sentence_count(self, obj):
+        """해당 세션의 총 문장 수 계산"""
+        return obj.results.count()
+    sentence_count.short_description = "문장 수"
+
+    def risk_summary(self, obj):
+        """고위험(HIGH/CRITICAL) 알림 개수 표시"""
+        high_risks = obj.results.filter(alert_level__in=['HIGH', 'CRITICAL']).count()
+        if high_risks > 0:
+            return f"위험상황 {high_risks}건"
+        return "정상"
+    risk_summary.short_description = "위험도 요약"
 
 @admin.register(ClassificationResult)
 class ClassificationResultAdmin(admin.ModelAdmin):
-    """
-    문장별 분석 결과 관리
-    """
-    # Admin 목록에 표시될 필드
-    list_display = (
-        'session_link', 
-        'label', 
-        'label_type', 
-        'confidence', 
-        'short_text', 
-        'created_at'
-    )
-    # 필터링 옵션
-    list_filter = ('label_type', 'label')
-    # 검색 가능 필드 (text 내용, 연결된 session_id)
-    search_fields = ('text', 'session__session_id') 
-    
-    # 긴 텍스트 내용을 잘라서 미리 보여주는 헬퍼 함수
+    list_display = ('session_id_display', 'label', 'action', 'alert_level', 'short_text', 'created_at')
+    list_filter = ('alert_level', 'action', 'label_type')
+    search_fields = ('text', 'session__session_id')
+
+    def session_id_display(self, obj):
+        return obj.session.session_id
+    session_id_display.short_description = "Session ID"
+
     def short_text(self, obj):
         return obj.text[:40] + "..." if len(obj.text) > 40 else obj.text
-    short_text.short_description = 'Text Preview'
-    
-    # 세션 ID를 클릭 가능한 링크로 표시 (Inlines 설정이 없어서 이렇게 단순 링크 처리)
-    def session_link(self, obj):
-        from django.utils.html import format_html
-        return format_html('<a href="/admin/logical_analysis/analysissession/{}/change/">{}</a>',
-                           obj.session.pk,
-                           obj.session.session_id)
-    session_link.short_description = 'Session ID'

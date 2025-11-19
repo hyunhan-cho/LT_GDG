@@ -28,11 +28,20 @@ class ClassificationResultOut(Schema):
     confidence: float
     probabilities: Dict[str, float]
     timestamp: Optional[datetime] = None
-    created_at: datetime # DB 저장 시점
+    action: Optional[str]
+    alert_level: Optional[str]
+    created_at: datetime
+
+class SessionSummary(Schema):
+    """세션 요약 정보"""
+    total_sentences: int
+    risk_score: int
+    highest_alert: str
+    primary_intent: str
 
 class AnalysisSessionOut(Schema):
-    """조회용 전체 세션 스키마"""
+    """조회용 전체 세션 스키마 (업그레이드 버전)"""
     session_id: str
     created_at: datetime
-    # 1:N 관계에 있는 결과들을 리스트로 포함
+    summary: SessionSummary
     results: List[ClassificationResultOut]
