@@ -7,6 +7,7 @@ from logical_analysis.api import router as analysis_router # 작성한 router im
 api = NinjaAPI()
 api.add_router("/analysis", analysis_router) # /api/analysis/... 로 연결됨
 
+
 urlpatterns = [
     path('admin/', admin.site.urls),
     path("api/", api.urls),
