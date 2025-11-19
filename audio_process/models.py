@@ -1,23 +1,31 @@
 from django.db import models
+from django.conf import settings
 
 class CallRecording(models.Model):
-    """
-    통화 녹음 파일 원본 및 메타데이터
-    """
+    counselor = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='calls',
+        verbose_name="담당 상담원"
+    )
+
     session_id = models.CharField(max_length=255, unique=True, db_index=True)
-    audio_file = models.FileField(upload_to='call_records/%Y/%m/%d/') # 파일 저장 경로
-    processed = models.BooleanField(default=False) # 분석 완료 여부
+    audio_file = models.FileField(upload_to='call_records/%Y/%m/%d/')
+    processed = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return f"Call {self.session_id}"
+        user_name = self.counselor.korean_name if self.counselor else "Unknown"
+        return f"Call {self.session_id} ({user_name})"
 
 class CallSegment(models.Model):
     recording = models.ForeignKey(CallRecording, on_delete=models.CASCADE, related_name='segments')
-    speaker = models.CharField(max_length=50) # 예: SPEAKER_00, SPEAKER_01
-    start_time = models.FloatField() # 시작 시간 (초)
-    end_time = models.FloatField()   # 종료 시간 (초)
-    text = models.TextField()        # 변환된 텍스트
+    speaker = models.CharField(max_length=50)
+    start_time = models.FloatField()
+    end_time = models.FloatField()
+    text = models.TextField()
     
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -25,4 +33,4 @@ class CallSegment(models.Model):
         return f"[{self.speaker}] {self.text[:20]}..."
     
     class Meta:
-        ordering = ['-start_time'] # 시간순 정렬
+        ordering = ['start_time']

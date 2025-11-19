@@ -47,7 +47,10 @@ INSTALLED_APPS = [
     'logical_analysis',
     'emotion_analysis',
     'audio_process',
+    'accounts',
 ]
+
+AUTH_USER_MODEL = 'accounts.User'
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
