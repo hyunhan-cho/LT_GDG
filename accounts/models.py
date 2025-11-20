@@ -57,8 +57,6 @@ class User(AbstractUser):
 
 class UserProfile(models.Model):
     user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='profile')
-    
-    profile_image = models.ImageField(upload_to='profiles/', null=True, blank=True)
     status_message = models.CharField(max_length=100, blank=True, default="")
     
     total_calls = models.IntegerField(default=0)

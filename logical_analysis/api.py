@@ -6,7 +6,7 @@ from django.db import transaction
 from django.db.models import Count
 from datetime import datetime
 
-from audio_process.models import CallRecording, CallSegment
+from audio_process.models import CallRecording, SpeakerSegment
 from .models import ClassificationResult
 from .schemas import AnalyzeRequest, AnalysisSessionOut, ClassificationResultOut
 from .inference import run_pipeline

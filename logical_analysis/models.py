@@ -1,9 +1,9 @@
 from django.db import models
-from audio_process.models import CallSegment
+from audio_process.models import SpeakerSegment
 
 class ClassificationResult(models.Model):
     segment = models.OneToOneField(
-        CallSegment, 
+        SpeakerSegment, 
         on_delete=models.CASCADE, 
         related_name='logical_analysis',
         verbose_name="분석 대상 구간"
