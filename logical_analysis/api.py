@@ -1,93 +1,102 @@
 # logical_analysis/api.py
 
-from ninja import Router, Schema
+from ninja import Router
 from django.shortcuts import get_object_or_404
 from django.db import transaction
-from datetime import datetime
 from django.db.models import Count
-from .schemas import AnalysisSessionOut, ClassificationResultOut
-from .models import AnalysisSession, ClassificationResult
-from .inference import run_pipeline  # 👈 수정된 함수 import
+from datetime import datetime
+
+from audio_process.models import CallRecording, SpeakerSegment
+from .models import ClassificationResult
+from .schemas import AnalyzeRequest, AnalysisSessionOut, ClassificationResultOut
+from .inference import run_pipeline
 
 router = Router()
 
-# 1. 요청 스키마 변경 (리스트 -> 통 문자열)
-class AnalyzeRequest(Schema):
-    session_id: str
-    text: str 
-
-@router.post("/run-inference")
-def run_inference_and_save(request, payload: AnalyzeRequest):
-    """
-    MainPipeline을 실행하고 결과를 DB에 저장
-    """
-    # 1. MainPipeline 실행
-    pipeline_result = run_pipeline(payload.text, payload.session_id)
+@router.post("/analyze")
+def run_analysis_for_session(request, payload: AnalyzeRequest):
+    recording = get_object_or_404(CallRecording, session_id=payload.session_id)
+    segments = recording.segments.all()
     
-    # 2. DB 저장 (dataclass -> ORM 변환)
+    if not segments.exists():
+        return {"status": "error", "message": "분석할 텍스트 데이터(Segments)가 없습니다."}
+
     saved_count = 0
+    
     with transaction.atomic():
-        session, _ = AnalysisSession.objects.get_or_create(
-            session_id=payload.session_id
-        )
-        
-        # MainPipeline의 결과(pipeline_result.results)를 반복
         results_to_create = []
-        for res in pipeline_result.results:
-            results_to_create.append(ClassificationResult(
-                session=session,
-                text=res.text,
-                label=res.label,
-                label_type=res.label_type,
-                confidence=res.confidence,
-                probabilities=res.probabilities or {},
-                timestamp=res.timestamp or datetime.now(),
-                action='MONITOR',       
-                alert_level='LOW',
-            ))
         
-        ClassificationResult.objects.bulk_create(results_to_create)
-        saved_count = len(results_to_create)
+        for seg in segments:
+            if hasattr(seg, 'logical_analysis'):
+                continue
+
+            ai_res = run_pipeline(seg.text, payload.session_id) 
+            res_data = ai_res.results[0] if hasattr(ai_res, 'results') and ai_res.results else ai_res
+
+            results_to_create.append(ClassificationResult(
+                segment=seg,
+                label=res_data.label,
+                label_type=res_data.label_type,
+                confidence=res_data.confidence,
+                probabilities=res_data.probabilities or {},
+                action=getattr(res_data, 'action', 'MONITOR'),
+                alert_level=getattr(res_data, 'alert_level', 'LOW'),
+                timestamp=datetime.now()
+            ))
+
+        if results_to_create:
+            ClassificationResult.objects.bulk_create(results_to_create)
+            saved_count = len(results_to_create)
+            
 
     return {
         "status": "success",
-        "processed_text_length": len(payload.text),
-        "saved_sentences": saved_count
+        "session_id": payload.session_id,
+        "analyzed_segments": saved_count
     }
+
 
 @router.get("/{session_id}", response=AnalysisSessionOut)
 def get_analysis_result(request, session_id: str):
-    """
-    Session ID로 분석 결과 및 요약 통계 조회
-    """
-    session = get_object_or_404(AnalysisSession, session_id=session_id)
-    results = session.results.all().order_by('created_at')
 
-    # --- 요약 통계 계산 로직 ---
-    total_count = results.count()
+    recording = get_object_or_404(CallRecording, session_id=session_id)
+    segments = recording.segments.select_related('logical_analysis').all().order_by('start_time')
     
-    # 1. 위험도 계산 (HIGH, CRITICAL 개수)
-    risk_count = results.filter(alert_level__in=['HIGH', 'CRITICAL']).count()
+    output_results = []
+    valid_results = []
     
-    # 2. 최고 위험 레벨 찾기
-    levels = [r.alert_level for r in results]
-    if 'CRITICAL' in levels:
-        highest = 'CRITICAL'
-    elif 'HIGH' in levels:
-        highest = 'HIGH'
-    elif 'MEDIUM' in levels:
-        highest = 'MEDIUM'
-    else:
-        highest = 'LOW'
+    for seg in segments:
+        if hasattr(seg, 'logical_analysis'):
+            res = seg.logical_analysis
+            valid_results.append(res)
+            
+            output_results.append({
+                "text": seg.text,
+                "label": res.label,
+                "label_type": res.label_type,
+                "confidence": res.confidence,
+                "probabilities": res.probabilities,
+                "action": res.action,
+                "alert_level": res.alert_level,
+                "timestamp": res.timestamp,
+                "created_at": res.created_at
+            })
 
-    # 3. 가장 많이 등장한 라벨(주된 의도) 찾기
+    total_count = len(valid_results)
+    risk_count = sum(1 for r in valid_results if r.alert_level in ['HIGH', 'CRITICAL'])
+    
+    alert_levels = {r.alert_level for r in valid_results}
+    if 'CRITICAL' in alert_levels: highest = 'CRITICAL'
+    elif 'HIGH' in alert_levels: highest = 'HIGH'
+    elif 'MEDIUM' in alert_levels: highest = 'MEDIUM'
+    else: highest = 'LOW'
+
     most_common_label = "None"
     if total_count > 0:
-        top_label = results.values('label').annotate(count=Count('label')).order_by('-count').first()
-        if top_label:
-            most_common_label = top_label['label']
+        from collections import Counter
+        counts = Counter([r.label for r in valid_results])
+        most_common_label = counts.most_common(1)[0][0]
 
-    # 요약 객체 생성
     summary_data = {
         "total_sentences": total_count,
         "risk_score": risk_count,
@@ -96,8 +105,8 @@ def get_analysis_result(request, session_id: str):
     }
 
     return {
-        "session_id": session.session_id,
-        "created_at": session.created_at,
+        "session_id": recording.session_id,
+        "created_at": recording.created_at,
         "summary": summary_data,
-        "results": list(results)
+        "results": output_results
     }
