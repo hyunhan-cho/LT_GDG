@@ -1,6 +1,6 @@
 from ninja import Router, File, UploadedFile
 from .models import CallRecording
-from emotion_analysis.emotion_system.diarization.speaker_split import diarize_and_transcribe
+from audio_system.diarization.speaker_split import diarize_and_transcribe
 import uuid
 
 router = Router()
