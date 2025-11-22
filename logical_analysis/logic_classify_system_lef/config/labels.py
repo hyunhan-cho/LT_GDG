@@ -1,7 +1,5 @@
 """
 Label 정의
-
-기존 labels.py에서 복사
 """
 
 from enum import Enum
@@ -30,4 +28,5 @@ class SpecialLabel(Enum):
 # Label 타입 구분
 NORMAL_LABELS = [label.value for label in NormalLabel]
 SPECIAL_LABELS = [label.value for label in SpecialLabel]
+
 
