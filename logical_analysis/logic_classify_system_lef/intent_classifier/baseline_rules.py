@@ -1,7 +1,8 @@
 """
 발화 의도 분류용 Baseline 규칙
 
-Turn 단위 분석을 위해 반복성 감지를 키워드만으로 제한
+특수 Label 감지를 위한 규칙만 포함
+classification_criteria.py의 일부 규칙만 추출하여 모듈 내부에 포함
 """
 
 from typing import List, Tuple, Optional
@@ -10,7 +11,7 @@ from typing import List, Tuple, Optional
 class IntentBaselineRules:
     """발화 의도 분류용 Baseline 규칙"""
     
-    # 반복성 감지 키워드 (Turn 단위: 키워드만 감지)
+    # 반복성 감지 키워드
     REPETITION_INDICATORS = [
         "앞선 통화에서도 말씀드렸다시피", "이전에도 말씀드렸는데",
         "또 같은 말씀", "계속 같은 얘기", "반복해서 말씀드리는데",
@@ -43,12 +44,9 @@ class IntentBaselineRules:
         """
         특수 Label 감지 (Baseline 규칙 기반)
         
-        주의: Turn 단위 분석을 위해 세션 맥락 사용을 최소화
-        - 반복성: 키워드만 감지 (실제 반복 여부는 후속 모듈에서 판단)
-        
         Args:
-            text: 분석할 텍스트 (해당 Turn만)
-            session_context: 세션 맥락 (선택사항, 최소 사용)
+            text: 분석할 텍스트
+            session_context: 세션 맥락 (반복성 감지용)
         
         Returns:
             [(label, confidence), ...] 리스트
@@ -58,14 +56,24 @@ class IntentBaselineRules:
         results = []
         text_lower = text.lower()
         
-        # 1. 반복 표현 키워드 감지 (Turn 단위: 키워드만 감지)
-        # 실제 반복 여부 판단은 후속 모듈에서 수행
+        # 1. 반복성 감지
         repetition_count = sum(1 for indicator in IntentBaselineRules.REPETITION_INDICATORS 
                                if indicator in text_lower)
-        if repetition_count > 0:
-            # 키워드만으로 감지 (세션 맥락 최소 사용)
-            confidence = min(0.4 + repetition_count * 0.2, 0.8)  # 최대 0.8로 제한 (후속 모듈에서 실제 판단)
-            results.append(("REPETITION", confidence))
+        
+        if session_context:
+            # 이전 대화와의 유사도 체크 (간단한 키워드 기반)
+            similar_topics = sum(1 for prev_text in session_context[-3:] 
+                                 if any(word in prev_text and word in text 
+                                       for word in text.split() if len(word) > 3))
+            
+            if repetition_count > 0 or similar_topics >= 2:
+                confidence = min(0.5 + (repetition_count + similar_topics) * 0.15, 1.0)
+                results.append(("REPETITION", confidence))
+        else:
+            # 세션 맥락이 없어도 반복 표현만으로 감지
+            if repetition_count > 0:
+                confidence = min(0.4 + repetition_count * 0.2, 1.0)
+                results.append(("REPETITION", confidence))
         
         # 2. 무리한 요구 감지
         strong_unreasonable = [kw for kw in IntentBaselineRules.UNREASONABLE_DEMAND_STRONG 
@@ -94,4 +102,5 @@ class IntentBaselineRules:
             results.append(("IRRELEVANCE", confidence))
         
         return results
+
 

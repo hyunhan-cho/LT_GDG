@@ -1,7 +1,7 @@
 """
 욕설 감지 통합 인터페이스
 
-기존 profanity_detector.py에서 복사 (Turn 단위 분석용)
+Korcen + Baseline 규칙을 통합하여 욕설을 감지
 """
 
 from typing import Optional

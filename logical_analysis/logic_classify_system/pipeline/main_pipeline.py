@@ -1,93 +1,255 @@
 """
-메인 파이프라인 오케스트레이터
+Turn 단위 분석 메인 파이프라인
 
-전체 파이프라인을 조율하여 문장 단위로 처리
+Turn 단위로 발화를 분석하여 특징점을 추출하고 스코어링
 """
 
-from typing import List, Optional
+from typing import List, Dict, Any, Optional
 from datetime import datetime
 
-from ..preprocessing.text_splitter import TextSplitter
+from ..preprocessing.text_splitter import TurnSplitter, Turn
 from ..profanity_filter.profanity_detector import ProfanityDetector
 from ..intent_classifier.intent_predictor import IntentPredictor
-from ..data.data_structures import PipelineResult, ClassificationResult
-from ..data.session_manager import SessionManager
+from ..feature_extractor.customer_feature_extractor import CustomerFeatureExtractor
+from ..feature_extractor.agent_feature_extractor import AgentFeatureExtractor
+from ..data.data_structures import (
+    PipelineResult,
+    TurnAnalysisResult,
+    CustomerAnalysisResult,
+    AgentAnalysisResult,
+    ProfanityResult,
+    ClassificationResult
+)
 
 
 class MainPipeline:
-    """메인 파이프라인"""
+    """Turn 단위 분석 메인 파이프라인"""
     
     def __init__(self):
         """
-        메인 파이프라인 초기화
+        파이프라인 초기화
         """
-        self.text_splitter = TextSplitter()
+        self.turn_splitter = TurnSplitter()
         self.profanity_detector = ProfanityDetector(use_korcen=False)
         self.intent_predictor = IntentPredictor()
-        self.session_manager = SessionManager()
+        self.customer_feature_extractor = CustomerFeatureExtractor()
+        self.agent_feature_extractor = AgentFeatureExtractor()
     
-    def process(self, text: str, session_id: str) -> PipelineResult:
+    def process(self, stt_data: Dict[str, Any]) -> PipelineResult:
         """
-        전체 파이프라인 실행
+        STT 결과를 Turn 단위로 처리
         
         Args:
-            text: STT 결과 텍스트 (전체 대화)
-            session_id: 세션 ID
+            stt_data: STT 결과 딕셔너리
+                예: {
+                    "session_id": "session_001",
+                    "segments": [
+                        {"speaker": "customer", "text": "안녕하세요", "timestamp": ...},
+                        {"speaker": "agent", "text": "네 안녕하세요", "timestamp": ...},
+                        ...
+                    ]
+                }
         
         Returns:
-            PipelineResult (전체 처리 결과)
+            PipelineResult (Turn 단위 분석 결과 리스트)
         """
-        # 1. 문장 단위 분할
-        sentences = self.text_splitter.split_sentences(text)
-        customer_sentences, agent_sentences = self.text_splitter.split_by_speaker(text)
+        session_id = stt_data.get("session_id", "unknown")
         
-        # 2. 각 고객 문장 처리
-        results = []
-        for sentence in customer_sentences:
-            # 1차: 욕설 필터링
-            profanity_result = self.profanity_detector.detect(sentence)
-            
-            # 2차: 발화 의도 분류
-            classification_result = self.intent_predictor.predict(
-                sentence,
-                profanity_result.is_profanity,
-                self.session_manager.get_context(session_id)
-            )
-            
-            results.append(classification_result)
-            
-            # 세션 맥락 업데이트
-            self.session_manager.add_sentence(session_id, sentence)
+        # 1. Turn 단위로 분할
+        turns = self.turn_splitter.split_into_turns(stt_data)
+        
+        # 2. 각 Turn 처리
+        turn_results = []
+        for turn in turns:
+            turn_result = self.process_turn(turn, session_id)
+            turn_results.append(turn_result)
         
         return PipelineResult(
             session_id=session_id,
-            results=results,
+            turn_results=turn_results,
             timestamp=datetime.now()
         )
     
-    def process_single_sentence(self, sentence: str, session_id: str) -> ClassificationResult:
+    def process_turn(self, turn: Turn, session_id: str) -> TurnAnalysisResult:
         """
-        단일 문장 처리
+        단일 Turn 처리
         
         Args:
-            sentence: 분석할 문장
+            turn: Turn 객체
             session_id: 세션 ID
         
         Returns:
-            ClassificationResult
+            TurnAnalysisResult
         """
-        # 1차: 욕설 필터링
-        profanity_result = self.profanity_detector.detect(sentence)
+        timestamp = datetime.now()
         
-        # 2차: 발화 의도 분류
-        classification_result = self.intent_predictor.predict(
-            sentence,
-            profanity_result.is_profanity,
-            self.session_manager.get_context(session_id)
+        # 1. 손님 발화 분석
+        customer_result = self._analyze_customer_turn(
+            turn.customer_text,
+            session_id,
+            turn.turn_index,
+            timestamp
         )
         
-        # 세션 맥락 업데이트
-        self.session_manager.add_sentence(session_id, sentence)
+        # 2. 상담원 발화 분석 (있는 경우)
+        agent_result = None
+        if turn.agent_text:
+            agent_result = self._analyze_agent_turn(
+                turn.agent_text,
+                customer_result.classification_result.label,
+                session_id,
+                turn.turn_index,
+                timestamp
+            )
         
-        return classification_result
+        # 3. Turn 단위 종합 점수 계산
+        turn_scores = self._calculate_turn_scores(customer_result, agent_result)
+        
+        return TurnAnalysisResult(
+            session_id=session_id,
+            turn_index=turn.turn_index,
+            customer_result=customer_result,
+            agent_result=agent_result,
+            turn_scores=turn_scores
+        )
+    
+    def _analyze_customer_turn(
+        self,
+        text: str,
+        session_id: str,
+        turn_index: int,
+        timestamp: datetime
+    ) -> CustomerAnalysisResult:
+        """손님 발화 Turn 분석"""
+        # 1. 욕설 필터링
+        profanity_result = self.profanity_detector.detect(text)
+        
+        # 2. 발화 의도 분류 (Turn 단위이므로 session_context 최소 사용)
+        # profanity_result의 category를 Label로 매핑
+        if profanity_result.is_profanity:
+            # category를 Label로 변환
+            label_map = {
+                "PROFANITY": "PROFANITY",
+                "VIOLENCE_THREAT": "VIOLENCE_THREAT",
+                "SEXUAL_HARASSMENT": "SEXUAL_HARASSMENT",
+                "HATE_SPEECH": "HATE_SPEECH",
+                "INSULT": "PROFANITY"  # INSULT는 PROFANITY로 매핑
+            }
+            label = label_map.get(profanity_result.category, "PROFANITY")
+            classification_result = ClassificationResult(
+                label=label,
+                label_type="SPECIAL",
+                confidence=profanity_result.confidence,
+                text=text,
+                timestamp=timestamp
+            )
+        else:
+            classification_result = self.intent_predictor.predict(
+                text,
+                profanity_result.is_profanity,
+                session_context=None  # Turn 단위 분석이므로 세션 맥락 미사용
+            )
+        
+        # 3. 특징점 추출
+        feature_scores, extracted_features = self.customer_feature_extractor.extract_features(
+            text,
+            profanity_result,
+            classification_result
+        )
+        
+        return CustomerAnalysisResult(
+            session_id=session_id,
+            turn_index=turn_index,
+            text=text,
+            timestamp=timestamp,
+            profanity_result=profanity_result,
+            classification_result=classification_result,
+            feature_scores=feature_scores,
+            extracted_features=extracted_features
+        )
+    
+    def _analyze_agent_turn(
+        self,
+        text: str,
+        customer_label: str,
+        session_id: str,
+        turn_index: int,
+        timestamp: datetime
+    ) -> AgentAnalysisResult:
+        """상담원 발화 Turn 분석"""
+        # 특징점 추출
+        feature_scores, compliance_details, extracted_features = self.agent_feature_extractor.extract_features(
+            text,
+            customer_label
+        )
+        
+        # 매뉴얼 준수도 점수 추출
+        manual_compliance_score = feature_scores.get("manual_compliance_score", 0.0)
+        
+        return AgentAnalysisResult(
+            session_id=session_id,
+            turn_index=turn_index,
+            text=text,
+            timestamp=timestamp,
+            corresponding_customer_label=customer_label,
+            manual_compliance_score=manual_compliance_score,
+            compliance_details=compliance_details,
+            feature_scores=feature_scores,
+            extracted_features=extracted_features
+        )
+    
+    def _calculate_turn_scores(
+        self,
+        customer_result: CustomerAnalysisResult,
+        agent_result: Optional[AgentAnalysisResult]
+    ) -> Dict[str, float]:
+        """
+        Turn 단위 종합 점수 계산
+        
+        주의: 해당 Turn에 대한 평가만 포함 (세션 전체 평가는 후속 모듈에서 수행)
+        """
+        turn_scores = {}
+        
+        # 1. 손님 문제 발생 가능성 점수
+        # Special Label 또는 높은 리스크 특징점 기반
+        problem_scores = [
+            customer_result.feature_scores.get("profanity_score", 0.0),
+            customer_result.feature_scores.get("threat_score", 0.0),
+            customer_result.feature_scores.get("sexual_harassment_score", 0.0),
+            customer_result.feature_scores.get("hate_speech_score", 0.0),
+            customer_result.feature_scores.get("unreasonable_demand_score", 0.0)
+        ]
+        turn_scores["customer_problem_score"] = max(problem_scores)
+        
+        # 2. 상담원 대응 품질 점수 (상담원 발화가 있는 경우)
+        if agent_result:
+            quality_scores = [
+                agent_result.feature_scores.get("manual_compliance_score", 0.0),
+                agent_result.feature_scores.get("information_accuracy_score", 0.0),
+                agent_result.feature_scores.get("communication_clarity_score", 0.0),
+                agent_result.feature_scores.get("empathy_score", 0.0),
+                agent_result.feature_scores.get("problem_solving_score", 0.0)
+            ]
+            # 가중 평균 계산
+            weights = [0.3, 0.25, 0.2, 0.15, 0.1]
+            turn_scores["agent_response_quality_score"] = sum(
+                score * weight for score, weight in zip(quality_scores, weights)
+            )
+        else:
+            turn_scores["agent_response_quality_score"] = 0.0
+        
+        # 3. Turn 리스크 점수
+        # 손님 문제 점수와 상담원 대응 품질을 종합
+        if agent_result:
+            # 상담원이 잘 대응하면 리스크 감소
+            risk_adjustment = (1.0 - turn_scores["agent_response_quality_score"]) * 0.3
+            turn_scores["turn_risk_score"] = min(
+                turn_scores["customer_problem_score"] + risk_adjustment,
+                1.0
+            )
+        else:
+            # 상담원 대응이 없으면 손님 문제 점수 그대로
+            turn_scores["turn_risk_score"] = turn_scores["customer_problem_score"]
+        
+        return turn_scores
 
