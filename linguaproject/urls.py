@@ -19,6 +19,6 @@ urlpatterns = [
 
     path('', main_views.index, name='index'),
     path('',include('accounts.urls')),
-
-    path('upload/', audio_views.upload_page, name='audio_upload'),
+    path('audio/', include('audio_process.urls')),
+    
 ]

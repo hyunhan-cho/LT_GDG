@@ -26,6 +26,11 @@
 </div>
 {% endblock %} {% block extra_js %}
 <script>
+    console.log('🧹 기존 토큰 삭제 중...');
+    localStorage.removeItem('access_token');
+    localStorage.removeItem('refresh_token');
+    localStorage.clear();
+
     document.getElementById('loginForm').addEventListener('submit', async function (e) {
         e.preventDefault();
 
@@ -45,12 +50,12 @@
             const data = await response.json();
 
             if (response.ok) {
-                // JWT 토큰 저장
+                console.log('서버 응답 토큰:', data.token.access.substring(0, 15) + '...');
                 localStorage.setItem('access_token', data.token.access);
                 localStorage.setItem('refresh_token', data.token.refresh);
 
                 alert(data.user.korean_name + '님 환영합니다!');
-                window.location.href = '/'; // 메인으로 이동
+                window.location.href = '/';
             } else {
                 alert('로그인 실패: ' + (data.message || '아이디/비번을 확인하세요'));
             }

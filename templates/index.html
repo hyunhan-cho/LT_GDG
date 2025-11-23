@@ -40,7 +40,9 @@
                     고객과의 통화 녹음 파일을 업로드하여<br />
                     감정, 화자, 의도를 AI로 분석하세요.
                 </p>
-                <a href="/upload" class="btn btn-primary btn-lg px-5 py-3 shadow-sm rounded-pill"> 🚀 분석 시작하기 </a>
+                <a href="/audio/upload" class="btn btn-primary btn-lg px-5 py-3 shadow-sm rounded-pill">
+                    🚀 분석 시작하기
+                </a>
             </div>
         </div>
 
@@ -204,7 +206,7 @@
 
             if (item.processed) {
                 statusBadge = `<span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-2">분석 완료</span>`;
-                actionBtn = `<a href="#" class="btn btn-sm btn-outline-primary rounded-pill px-3">결과 보기</a>`;
+                actionBtn = `<a href="/audio/detail/${item.session_id}/" class="btn btn-sm btn-outline-primary rounded-pill px-3">결과 보정</a>`;
             } else {
                 statusBadge = `<span class="badge bg-warning-subtle text-warning border border-warning-subtle rounded-pill px-2">
                                 <span class="spinner-grow spinner-grow-sm me-1" style="width: 0.5rem; height: 0.5rem;" role="status"></span>분석 중
