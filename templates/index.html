@@ -155,7 +155,6 @@
         tbody.innerHTML = `<tr><td colspan="5" class="text-center py-5"><div class="spinner-border text-primary" role="status"></div></td></tr>`;
 
         try {
-            // 날짜 파라미터와 함께 API 호출
             const response = await fetch(`/api/audio/list?target_date=${dateStr}`, {
                 headers: { Authorization: `Bearer ${token}` },
             });
@@ -204,12 +203,9 @@
             let statusBadge, actionBtn;
 
             if (item.processed) {
-                // 분석 완료
                 statusBadge = `<span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-2">분석 완료</span>`;
-                // 아직 상세 페이지는 없으므로 # 링크 처리
                 actionBtn = `<a href="#" class="btn btn-sm btn-outline-primary rounded-pill px-3">결과 보기</a>`;
             } else {
-                // 분석 중 (또는 대기)
                 statusBadge = `<span class="badge bg-warning-subtle text-warning border border-warning-subtle rounded-pill px-2">
                                 <span class="spinner-grow spinner-grow-sm me-1" style="width: 0.5rem; height: 0.5rem;" role="status"></span>분석 중
                                </span>`;
