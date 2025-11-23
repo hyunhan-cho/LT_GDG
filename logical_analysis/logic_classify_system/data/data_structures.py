@@ -45,23 +45,31 @@ class CustomerAnalysisResult:
     # Turn 단위 특징점 점수 (해당 Turn만으로 추출)
     feature_scores: Dict[str, float]
     # 예: {
+    #   # Special Label 특징점 (korcen + baseline 규칙 기반)
     #   "profanity_score": 0.8,           # 해당 Turn 내 욕설 감지 신뢰도
     #   "threat_score": 0.3,              # 해당 Turn 내 위협 표현 감지
     #   "sexual_harassment_score": 0.0,   # 해당 Turn 내 성희롱 표현 감지
     #   "hate_speech_score": 0.0,         # 해당 Turn 내 혐오표현 감지
     #   "unreasonable_demand_score": 0.6, # 해당 Turn 내 무리한 요구 감지
     #   "repetition_keyword_score": 0.4,  # 해당 Turn 내 반복 표현 키워드 존재 여부
-    #   "normal_label_confidence": 0.85   # 해당 Turn의 Normal Label 분류 신뢰도
+    #   # Special Label 신뢰도 (요인들 합산)
+    #   "special_label_confidence": 0.85, # Special Label을 붙이게 된 계기(요인들)의 합산 신뢰도
+    #   # Special Label 요인별 점수 (probabilities 기반)
+    #   "profanity_factor_score": 0.5,    # PROFANITY 요인 기여도
+    #   "unreasonable_demand_factor_score": 0.3, # UNREASONABLE_DEMAND 요인 기여도
+    #   # 주의: Normal Label confidence는 제거됨 (정량화하기 어려움)
+    #   # Normal Label은 Special Label이 아닐 뿐, 정상 발화의 근거를 확신할 수 없음
     # }
     
     # 추출된 특징점 상세 정보 (해당 Turn 내에서 발견된 것만)
     extracted_features: Dict[str, Any]
     # 예: {
+    #   # Special Label 특징점
     #   "profanity_keywords": ["욕설1"],           # 해당 Turn에서 발견
     #   "threat_patterns": ["위협 패턴1"],         # 해당 Turn에서 발견
-    #   "unreasonable_keywords": ["지금 당장"],    # 해당 Turn에서 발견
+    #   "unreasonable_keywords": ["공짜로", "배상"], # 해당 Turn에서 발견
     #   "repetition_keywords": ["또 같은 말씀"],   # 해당 Turn에서 발견 (실제 반복 여부는 후속 모듈)
-    #   ...
+    #   # 주의: Normal Label 키워드는 추출하지 않음 (Normal Label은 Special Label이 아닐 뿐)
     # }
 
 
@@ -132,4 +140,5 @@ class PipelineResult:
     session_id: str
     turn_results: List[TurnAnalysisResult]  # Turn 단위 분석 결과 리스트
     timestamp: Optional[datetime] = None
+
 

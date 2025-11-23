@@ -31,3 +31,4 @@ class SpecialLabel(Enum):
 NORMAL_LABELS = [label.value for label in NormalLabel]
 SPECIAL_LABELS = [label.value for label in SpecialLabel]
 
+

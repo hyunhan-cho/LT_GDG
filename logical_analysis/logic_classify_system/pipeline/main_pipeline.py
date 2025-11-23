@@ -125,30 +125,13 @@ class MainPipeline:
         profanity_result = self.profanity_detector.detect(text)
         
         # 2. 발화 의도 분류 (Turn 단위이므로 session_context 최소 사용)
-        # profanity_result의 category를 Label로 매핑
-        if profanity_result.is_profanity:
-            # category를 Label로 변환
-            label_map = {
-                "PROFANITY": "PROFANITY",
-                "VIOLENCE_THREAT": "VIOLENCE_THREAT",
-                "SEXUAL_HARASSMENT": "SEXUAL_HARASSMENT",
-                "HATE_SPEECH": "HATE_SPEECH",
-                "INSULT": "PROFANITY"  # INSULT는 PROFANITY로 매핑
-            }
-            label = label_map.get(profanity_result.category, "PROFANITY")
-            classification_result = ClassificationResult(
-                label=label,
-                label_type="SPECIAL",
-                confidence=profanity_result.confidence,
-                text=text,
-                timestamp=timestamp
-            )
-        else:
-            classification_result = self.intent_predictor.predict(
-                text,
-                profanity_result.is_profanity,
-                session_context=None  # Turn 단위 분석이므로 세션 맥락 미사용
-            )
+        # profanity_result 정보를 IntentPredictor에 전달하여 통합 처리
+        classification_result = self.intent_predictor.predict(
+            text,
+            profanity_result.is_profanity,
+            profanity_confidence=profanity_result.confidence if profanity_result.is_profanity else 0.0,
+            session_context=None  # Turn 단위 분석이므로 세션 맥락 미사용
+        )
         
         # 3. 특징점 추출
         feature_scores, extracted_features = self.customer_feature_extractor.extract_features(
@@ -217,7 +200,8 @@ class MainPipeline:
             customer_result.feature_scores.get("threat_score", 0.0),
             customer_result.feature_scores.get("sexual_harassment_score", 0.0),
             customer_result.feature_scores.get("hate_speech_score", 0.0),
-            customer_result.feature_scores.get("unreasonable_demand_score", 0.0)
+            customer_result.feature_scores.get("unreasonable_demand_score", 0.0),
+            customer_result.feature_scores.get("repetition_keyword_score", 0.0)  # 반복 표현 점수 추가
         ]
         turn_scores["customer_problem_score"] = max(problem_scores)
         
