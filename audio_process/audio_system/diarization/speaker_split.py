@@ -4,8 +4,8 @@ from huggingface_hub import login
 from dotenv import load_dotenv
 import os
 import json
-from audio_process.models import AudioFile, SpeakerSegment
-from audio_process.audio_system.utils.audio_utils import convert_to_wav
+from audio_process.models import CallRecording, SpeakerSegment
+from audio_process.audio_system.utils.audio_utils import download_and_convert_to_wav
 
 # 환경 변수 로드
 load_dotenv()
@@ -30,13 +30,13 @@ def get_diarization_pipeline():
     return pipeline
 
 def diarize_and_transcribe(audio_file_id, save_json=False, json_path="segments.json"):
-    audio_obj = AudioFile.objects.get(id=audio_file_id)
+    audio_obj = CallRecording.objects.get(id=audio_file_id)
     original_path = audio_obj.file.path
 
     # mp3/m4a → wav 변환
     ext = os.path.splitext(original_path)[1].lower()
     if ext in [".mp3", ".m4a"]:
-        audio_path = convert_to_wav(original_path)
+        audio_path = download_and_convert_to_wav(original_path)
     else:
         audio_path = original_path
 

@@ -8,6 +8,8 @@ from django.contrib.auth import authenticate
 
 from ninja.errors import HttpError
 from ninja_jwt.tokens import RefreshToken
+from ninja_jwt.authentication import JWTAuth
+from .schemas import UserInfoSchema, UserSignupSchema, UserLoginSchema, LoginResponseSchema, CompanyCreateSchema, DepartmentCreateSchema
 
 from .models import User, Company, Department
 from .schemas import *
@@ -122,4 +124,15 @@ def login(request, payload: UserLoginSchema):
             "company_name": user.company.name if user.company else None,
             "department_name": user.department.name if user.department else None,
         }
+    }
+
+@router.get("/me", response=UserInfoSchema, auth=JWTAuth())
+def get_user_profile(request):
+    return {
+        "id": request.user.id,
+        "username": request.user.username,
+        "korean_name": request.user.korean_name,
+        "employee_id": request.user.employee_id,
+        "company_name": request.user.company.name if request.user.company else "소속 없음",
+        "department_name": request.user.department.name if request.user.department else "-"
     }

@@ -1,25 +1,30 @@
 # core_data/api.py
-from ninja import Router, File, UploadedFile
+from typing import List
+from ninja import Router, File, UploadedFile, Schema
 from django.shortcuts import get_object_or_404
 from .models import CallRecording, SpeakerSegment
+from ninja_jwt.authentication import JWTAuth
 from .audio_system.diarization.speaker_split import diarize_and_transcribe  # AI 분석 함수
 from .audio_system.utils.audio_utils import download_and_convert_to_wav, cleanup_temp_file # 유틸 함수
+from datetime import date, datetime
 
 router = Router()
 
-@router.post("/upload")
+class RecordingListSchema(Schema):
+    session_id: str
+    file_name: str
+    created_at: datetime
+    duration: float
+    processed: bool
+
+
+@router.post("/upload", auth=JWTAuth())
 def upload_and_process(request, file: UploadedFile = File(...)):
-    """
-    [Standard S3 Workflow]
-    1. 파일 업로드 (S3 자동 저장)
-    2. S3에서 다운로드 및 변환
-    3. AI 분석
-    4. 결과 저장
-    """
 
     recording = CallRecording.objects.create(
         audio_file=file,
-        file_name=file.name
+        file_name=file.name,
+        uploader=request.user
     )
     
     local_wav_path = None
@@ -56,3 +61,21 @@ def upload_and_process(request, file: UploadedFile = File(...)):
 
     finally:
         cleanup_temp_file(local_wav_path)
+
+@router.get("/list", response=List[RecordingListSchema], auth=JWTAuth())
+def get_recording_list(request, target_date: str = None):
+    if target_date:
+        try:
+            search_date = datetime.strptime(target_date, "%Y-%m-%d").date()
+        except ValueError:
+            search_date = date.today()
+    else:
+        search_date = date.today()
+
+
+    recordings = CallRecording.objects.filter(
+        uploader=request.user,
+        created_at__date=search_date
+    ).order_by('-created_at')
+
+    return recordings
