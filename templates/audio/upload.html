@@ -1,0 +1,114 @@
+{% extends 'base.html' %} {% block title %}분석 업로드 - LinguaTech{% endblock %} {% block content %}
+<div class="row justify-content-center mt-5">
+    <div class="col-md-8">
+        <div class="card shadow">
+            <div class="card-header bg-white py-3">
+                <h4 class="mb-0">📂 녹음 파일 업로드</h4>
+            </div>
+            <div class="card-body p-5">
+                <form id="uploadForm">
+                    <div
+                        class="mb-4 text-center p-5 border border-2 border-dashed rounded"
+                        id="dropZone"
+                        style="background-color: #f8f9fa; border-color: #dee2e6"
+                    >
+                        <p class="display-4">🎧</p>
+                        <h5>파일을 이곳에 드래그하거나 클릭하세요</h5>
+                        <p class="text-muted small">지원 형식: .mp3, .m4a, .wav</p>
+                        <input type="file" id="fileInput" class="d-none" accept=".mp3,.m4a,.wav" required />
+                    </div>
+
+                    <div id="progressArea" class="d-none mb-4">
+                        <label class="form-label">업로드 및 분석 중...</label>
+                        <div class="progress">
+                            <div
+                                class="progress-bar progress-bar-striped progress-bar-animated"
+                                role="progressbar"
+                                style="width: 100%"
+                            ></div>
+                        </div>
+                        <small class="text-muted">파일 크기에 따라 시간이 소요될 수 있습니다.</small>
+                    </div>
+
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-primary btn-lg" id="uploadBtn" disabled>분석 시작</button>
+                    </div>
+                </form>
+
+                <div id="resultArea" class="d-none mt-4 alert alert-success">
+                    <h5>✅ 분석 완료!</h5>
+                    <p>세션 ID: <strong id="sessionId"></strong></p>
+                    <p>분석된 문장 수: <span id="segmentCount"></span>개</p>
+                    <hr />
+                    <a href="/" class="btn btn-outline-success btn-sm">메인으로</a>
+                    <a href="#" class="btn btn-success btn-sm">상세 결과 보기 (준비중)</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} {% block extra_js %}
+<script>
+    const dropZone = document.getElementById('dropZone');
+    const fileInput = document.getElementById('fileInput');
+    const uploadBtn = document.getElementById('uploadBtn');
+    const uploadForm = document.getElementById('uploadForm');
+
+    // 1. 드래그 앤 드롭 & 클릭 이벤트
+    dropZone.addEventListener('click', () => fileInput.click());
+
+    fileInput.addEventListener('change', function () {
+        if (this.files.length > 0) {
+            dropZone.querySelector('h5').innerText = '선택됨: ' + this.files[0].name;
+            dropZone.classList.add('border-primary');
+            uploadBtn.disabled = false;
+        }
+    });
+
+    // 2. 업로드 처리
+    uploadForm.addEventListener('submit', async function (e) {
+        e.preventDefault();
+
+        const file = fileInput.files[0];
+        if (!file) return;
+
+        const formData = new FormData();
+        formData.append('file', file);
+
+        // UI 변경 (로딩 중)
+        document.getElementById('progressArea').classList.remove('d-none');
+        uploadBtn.disabled = true;
+        dropZone.style.opacity = '0.5';
+
+        const token = localStorage.getItem('access_token');
+
+        try {
+            const response = await fetch('/api/audio/upload', {
+                method: 'POST',
+                headers: {
+                    Authorization: `Bearer ${token}`, // 인증 토큰
+                },
+                body: formData, // FormData는 Content-Type 헤더 자동 설정됨
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                // 성공 처리
+                document.getElementById('progressArea').classList.add('d-none');
+                document.getElementById('resultArea').classList.remove('d-none');
+
+                document.getElementById('sessionId').innerText = data.session_id;
+                document.getElementById('segmentCount').innerText = data.segments_count;
+            } else {
+                alert('실패: ' + (data.message || JSON.stringify(data)));
+                location.reload();
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            alert('오류 발생: ' + error);
+            location.reload();
+        }
+    });
+</script>
+{% endblock %}
