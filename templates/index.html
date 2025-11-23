@@ -1,0 +1,244 @@
+{% extends 'base.html' %} {% block title %}대시보드 - LinguaTech{% endblock %} {% block content %}
+<div class="row mt-4">
+    <div class="col-md-4 mb-4">
+        <div class="card shadow-sm h-100 border-0">
+            <div class="card-body text-center pt-5">
+                <div class="mb-4">
+                    <div
+                        class="rounded-circle bg-light d-inline-flex align-items-center justify-content-center"
+                        style="width: 100px; height: 100px"
+                    >
+                        <span class="display-4">👨‍💼</span>
+                    </div>
+                </div>
+
+                <h3 class="card-title fw-bold mb-1" id="profile-name">로딩 중...</h3>
+                <p class="text-muted mb-2" id="profile-company">-</p>
+                <span class="badge bg-primary-subtle text-primary rounded-pill px-3 py-2 mb-4" id="profile-dept"
+                    >-</span
+                >
+
+                <div class="card bg-light border-0 rounded-3 p-3 text-start mx-2">
+                    <div class="d-flex justify-content-between mb-2">
+                        <span class="text-muted small">사번</span>
+                        <span class="fw-bold text-dark" id="profile-emp-id">-</span>
+                    </div>
+                    <div class="d-flex justify-content-between">
+                        <span class="text-muted small">아이디</span>
+                        <span class="fw-bold text-dark" id="profile-username">-</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-8">
+        <div class="card shadow-sm mb-4 border-primary bg-primary-subtle bg-opacity-10">
+            <div class="card-body p-5 text-center">
+                <h2 class="mb-3 fw-bold text-primary">통화 녹음 분석</h2>
+                <p class="text-secondary mb-4">
+                    고객과의 통화 녹음 파일을 업로드하여<br />
+                    감정, 화자, 의도를 AI로 분석하세요.
+                </p>
+                <a href="/upload" class="btn btn-primary btn-lg px-5 py-3 shadow-sm rounded-pill"> 🚀 분석 시작하기 </a>
+            </div>
+        </div>
+
+        <div class="card shadow-sm border-0">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center py-3 border-bottom-0">
+                <div class="d-flex align-items-center">
+                    <span class="fs-5 me-2">📅</span>
+                    <h5 class="mb-0 fw-bold">상담 이력 조회</h5>
+                </div>
+                <div class="input-group input-group-sm" style="width: 180px">
+                    <span class="input-group-text bg-light border-end-0"><i class="bi bi-calendar"></i></span>
+                    <input
+                        type="date"
+                        id="history-date"
+                        class="form-control border-start-0 ps-0"
+                        style="cursor: pointer"
+                    />
+                </div>
+            </div>
+
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light text-secondary small text-uppercase">
+                            <tr>
+                                <th scope="col" class="ps-4 py-3">시간</th>
+                                <th scope="col" class="py-3">파일 정보</th>
+                                <th scope="col" class="py-3">길이</th>
+                                <th scope="col" class="py-3">상태</th>
+                                <th scope="col" class="text-end pe-4 py-3">결과</th>
+                            </tr>
+                        </thead>
+                        <tbody id="recording-list-body">
+                            <tr>
+                                <td colspan="5" class="text-center py-5 text-muted">
+                                    <div class="spinner-border spinner-border-sm text-primary me-2" role="status"></div>
+                                    데이터를 불러오는 중...
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="card-footer bg-white text-center py-3 border-0">
+                <small class="text-muted">최근 30일 이력만 조회됩니다.</small>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} {% block extra_js %}
+<script>
+    // --- 1. 초기화 및 이벤트 리스너 ---
+    const dateInput = document.getElementById('history-date');
+
+    // 오늘 날짜로 기본 설정 (YYYY-MM-DD)
+    // toISOString()은 UTC 기준이라 한국 시간과 다를 수 있으므로 로컬 시간 계산
+    const today = new Date();
+    const offset = today.getTimezoneOffset() * 60000; // ms 단위 오프셋
+    const localISOTime = new Date(today - offset).toISOString().split('T')[0];
+    dateInput.value = localISOTime;
+
+    // 날짜 변경 시 리스트 다시 불러오기
+    dateInput.addEventListener('change', function () {
+        loadRecordings(this.value);
+    });
+
+    // --- 2. 사용자 프로필 로드 함수 ---
+    async function loadUserProfile() {
+        const token = localStorage.getItem('access_token');
+
+        if (!token) {
+            // 토큰 없으면 로그인 페이지로 튕기기
+            alert('로그인이 필요합니다.');
+            window.location.href = '/login';
+            return;
+        }
+
+        try {
+            const response = await fetch('/api/account/me', {
+                headers: { Authorization: `Bearer ${token}` },
+            });
+
+            if (response.ok) {
+                const user = await response.json();
+
+                // 프로필 UI 업데이트
+                document.getElementById('profile-name').innerText = user.korean_name + ' 님';
+                document.getElementById('profile-company').innerText = user.company_name || '소속 없음';
+                document.getElementById('profile-dept').innerText = user.department_name || '부서 미정';
+                document.getElementById('profile-emp-id').innerText = user.employee_id;
+                document.getElementById('profile-username').innerText = user.username;
+
+                // 프로필 로드 완료 후 상담 이력 리스트 로드 시작
+                loadRecordings(dateInput.value);
+            } else {
+                console.error('프로필 로드 실패');
+                // 토큰 만료 시 로그아웃 처리
+                localStorage.removeItem('access_token');
+                window.location.href = '/login';
+            }
+        } catch (error) {
+            console.error('Error:', error);
+        }
+    }
+
+    // --- 3. 상담 이력 리스트 로드 함수 ---
+    async function loadRecordings(dateStr) {
+        const token = localStorage.getItem('access_token');
+        const tbody = document.getElementById('recording-list-body');
+
+        // 로딩 스피너 표시
+        tbody.innerHTML = `<tr><td colspan="5" class="text-center py-5"><div class="spinner-border text-primary" role="status"></div></td></tr>`;
+
+        try {
+            const response = await fetch(`/api/audio/list?target_date=${dateStr}`, {
+                headers: { Authorization: `Bearer ${token}` },
+            });
+
+            if (response.ok) {
+                const list = await response.json();
+                renderTable(list);
+            } else {
+                tbody.innerHTML = `<tr><td colspan="5" class="text-center py-5 text-danger">데이터를 불러오지 못했습니다.</td></tr>`;
+            }
+        } catch (error) {
+            console.error(error);
+            tbody.innerHTML = `<tr><td colspan="5" class="text-center py-5 text-danger">서버 연결 오류가 발생했습니다.</td></tr>`;
+        }
+    }
+
+    // --- 4. 테이블 렌더링 함수 ---
+    function renderTable(list) {
+        const tbody = document.getElementById('recording-list-body');
+
+        if (!list || list.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="5" class="text-center py-5">
+                        <div class="text-muted mb-2" style="font-size: 2rem;">📭</div>
+                        <p class="text-muted mb-0">해당 날짜의 상담 내역이 없습니다.</p>
+                    </td>
+                </tr>`;
+            return;
+        }
+
+        let html = '';
+        list.forEach((item) => {
+            // 시간 포맷팅 (오후 02:30 형태)
+            const timeStr = new Date(item.created_at).toLocaleTimeString('ko-KR', {
+                hour: '2-digit',
+                minute: '2-digit',
+            });
+
+            // 재생 시간 포맷팅 (분:초)
+            const min = Math.floor(item.duration / 60);
+            const sec = Math.floor(item.duration % 60);
+            const durationStr = `${min}분 ${sec}초`;
+
+            // 상태 뱃지 및 버튼 로직
+            let statusBadge, actionBtn;
+
+            if (item.processed) {
+                statusBadge = `<span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-2">분석 완료</span>`;
+                actionBtn = `<a href="#" class="btn btn-sm btn-outline-primary rounded-pill px-3">결과 보기</a>`;
+            } else {
+                statusBadge = `<span class="badge bg-warning-subtle text-warning border border-warning-subtle rounded-pill px-2">
+                                <span class="spinner-grow spinner-grow-sm me-1" style="width: 0.5rem; height: 0.5rem;" role="status"></span>분석 중
+                               </span>`;
+                actionBtn = `<button class="btn btn-sm btn-secondary rounded-pill px-3" disabled>대기 중</button>`;
+            }
+
+            html += `
+                <tr>
+                    <td class="ps-4 fw-bold text-secondary">${timeStr}</td>
+                    <td>
+                        <div class="d-flex align-items-center">
+                            <div class="bg-light rounded p-2 me-2 text-primary"><i class="bi bi-file-earmark-music"></i></div>
+                            <div>
+                                <div class="fw-semibold text-dark text-truncate" style="max-width: 200px;">${
+                                    item.file_name || '파일 이름 없음'
+                                }</div>
+                                <div class="small text-muted" style="font-size: 0.75rem;">ID: ${item.session_id.substring(
+                                    0,
+                                    8
+                                )}</div>
+                            </div>
+                        </div>
+                    </td>
+                    <td class="text-muted">${durationStr}</td>
+                    <td>${statusBadge}</td>
+                    <td class="text-end pe-4">${actionBtn}</td>
+                </tr>
+            `;
+        });
+        tbody.innerHTML = html;
+    }
+
+    // 페이지 로드 시 실행
+    loadUserProfile();
+</script>
+{% endblock %}

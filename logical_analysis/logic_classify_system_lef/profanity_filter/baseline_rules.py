@@ -1,7 +1,8 @@
 """
 욕설 필터용 Baseline 규칙
 
-기존 baseline_rules.py에서 복사
+classification_criteria.py의 욕설 관련 규칙만 추출하여 모듈 내부에 포함
+모듈 독립성을 위해 외부 파일 의존성 제거
 """
 
 from typing import Tuple, Optional
@@ -13,7 +14,7 @@ class ProfanityBaselineRules:
     # 직접적 욕설 키워드
     PROFANITY_KEYWORDS = [
         "X팔", "XXX년", "개XX", "XX놈", "XX년", "지랄", "병신", "미친",
-        "씨발", "시발", "좆", "개새끼", "미친놈", "죽어", "꺼져"
+        "씨발", "좆", "개새끼", "미친놈", "죽어", "꺼져"
         # 추가 욕설 키워드는 여기에 계속 추가
     ]
     
@@ -93,4 +94,5 @@ class ProfanityBaselineRules:
             return True, "INSULT", min(0.4 + insult_count * 0.2, 1.0)
         
         return False, None, 0.0
+
 

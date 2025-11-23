@@ -1,7 +1,7 @@
 """
 발화 의도 예측 통합 인터페이스
 
-Turn 단위 분석에 맞게 수정
+Baseline 규칙 + KoSentenceBERT를 통합하여 발화 의도를 분류
 """
 
 from typing import Optional, List
@@ -32,12 +32,10 @@ class IntentPredictor:
         """
         발화 의도 예측 (통합)
         
-        주의: Turn 단위 분석이므로 session_context는 최소 사용
-        
         Args:
-            text: 분석할 문장 (해당 Turn만)
+            text: 분석할 문장
             profanity_detected: 1차 필터링에서 욕설 감지 여부
-            session_context: 세션 맥락 (선택사항, 최소 사용)
+            session_context: 세션 맥락
         
         Returns:
             ClassificationResult (label, label_type, confidence, ...)
@@ -52,7 +50,7 @@ class IntentPredictor:
                 timestamp=datetime.now()
             )
         
-        # Baseline 규칙으로 특수 Label 사전 감지 (Turn 단위)
+        # Baseline 규칙으로 특수 Label 사전 감지
         baseline_results = self.baseline_rules.detect_special_labels(text, session_context)
         if baseline_results:
             # 가장 높은 신뢰도의 Label 선택

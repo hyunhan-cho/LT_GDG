@@ -1,6 +1,8 @@
 from django.contrib import admin
 from django.urls import path, include
 from ninja import NinjaAPI
+from . import views as main_views
+from audio_process import views as audio_views
 
 from accounts.api import router as accounts_router
 from logical_analysis.api import router as analysis_router
@@ -13,6 +15,10 @@ api.add_router("/audio", audio_router)
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path("emotion/", include("emotion_analysis.urls")),
     path("api/", api.urls),
+
+    path('', main_views.index, name='index'),
+    path('',include('accounts.urls')),
+
+    path('upload/', audio_views.upload_page, name='audio_upload'),
 ]
