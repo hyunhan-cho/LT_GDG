@@ -75,23 +75,60 @@ class CustomerAnalysisResult:
 
 @dataclass
 class AgentAnalysisResult:
-    """상담원 발화 Turn 분석 결과"""
+    """상담원 발화 Turn 분석 결과 (Keyword 기반 매뉴얼 준수 평가)"""
     # 기본 정보
     session_id: str
     turn_index: int
     text: str  # 해당 Turn의 발화만
     timestamp: datetime
-    corresponding_customer_label: str  # 해당 손님 발화의 Label
+    corresponding_customer_label: str  # 해당 손님 발화의 Label (CAR)
+    emotion_label: Optional[str] = None  # 감정 라벨 (향후 감정 분류 시스템에서 가져옴)
     
-    # 매뉴얼 준수 분석 결과 (해당 Turn + 해당 Label 매뉴얼 기준)
+    # 매뉴얼 준수 분석 결과 (Keyword 기반, 감정 라벨 + CAR 조합 기준)
     manual_compliance_score: float  # 0.0-1.0
     compliance_details: Dict[str, Any]
     # 예: {
-    #   "phrase_score": 0.8,      # 해당 Turn 내 필수 표현 사용 여부
-    #   "keyword_score": 0.9,     # 해당 Turn 내 필수 키워드 사용 여부
-    #   "procedure_score": 0.7,   # 해당 Turn 내 절차 순서 (Turn 내에서 판단 가능한 부분만)
-    #   "complied_items": ["필수 표현 사용", "절차 안내"],
-    #   "non_complied_items": ["공감 표현 부족"]
+    #   # 인사 검사
+    #   "greeting_score": 1.0,              # 시작 인사 점수
+    #   "greeting_details": {
+    #       "checked": True,
+    #       "found_keywords": ["안녕하세요"],
+    #       "all_keywords": ["안녕하세요", "안녕"]
+    #   },
+    #   "closing_score": 1.0,               # 마무리 인사 점수
+    #   "closing_details": {...},
+    #   # 필수 키워드 검사 (작은 조각 단위)
+    #   "required_keyword_score": 0.9,      # 필수 키워드 포함 점수
+    #   "required_keyword_details": {
+    #       "found_keywords": ["죄송", "불편", "처리"],
+    #       "missing_keywords": ["이해"],
+    #       "found_count": 3,
+    #       "total_count": 4
+    #   },
+    #   # 금지 키워드 검사
+    #   "prohibited_keyword_score": 1.0,    # 금지 키워드 미사용 시 1.0
+    #   "prohibited_keyword_details": {
+    #       "found_prohibited": [],
+    #       "all_prohibited": ["욕", "비하"]
+    #   },
+    #   # 응대 표현 검사
+    #   "response_phrase_score": 0.8,       # 응대 표현 점수
+    #   "response_phrase_details": {
+    #       "found_phrases": ["안내드리겠습니다", "처리해드리겠습니다"],
+    #       "all_phrases": [...]
+    #   },
+    #   # 공감 표현 검사 (empathy_score와 겹치는 부분)
+    #   "empathy_phrase_score": 0.7,        # 공감 표현 점수
+    #   "empathy_phrase_details": {
+    #       "found_phrases": ["불편을 드려 죄송합니다"],
+    #       "all_phrases": [...]
+    #   },
+    #   # 종합 정보
+    #   "found_keywords": ["안녕하세요", "죄송", "불편", "처리"],
+    #   "missing_keywords": ["이해"],
+    #   "found_prohibited": [],
+    #   "complied_items": ["시작 인사: 안녕하세요", "필수 키워드 포함: 죄송, 불편, 처리"],
+    #   "non_complied_items": ["필수 키워드 누락: 이해"]
     # }
     
     # Turn 단위 특징점 점수 (해당 Turn만으로 추출)
@@ -107,9 +144,13 @@ class AgentAnalysisResult:
     # 추출된 특징점 상세 정보 (해당 Turn 내에서 발견된 것만)
     extracted_features: Dict[str, Any]
     # 예: {
-    #   "used_phrases": ["안내드리겠습니다"],     # 해당 Turn에서 사용된 표현
-    #   "missing_phrases": ["불편을 드려 죄송합니다"],  # 해당 Turn에서 미사용 표현
-    #   "used_keywords": ["처리", "절차"],        # 해당 Turn에서 사용된 키워드
+    #   # 매뉴얼 준수도 관련
+    #   "used_keywords": ["안녕하세요", "죄송", "불편", "처리"],  # 사용된 키워드 (compliance_details에서 추출)
+    #   "missing_keywords": ["이해"],                            # 누락된 필수 키워드
+    #   "prohibited_keywords": [],                               # 금지 키워드 (사용된 경우)
+    #   "empathy_keywords": ["불편을 드려 죄송합니다"],          # 공감 표현 (구 단위)
+    #   # 기타 특징점
+    #   "solution_keywords": ["처리", "조치"],                   # 해결 방안 키워드
     #   ...
     # }
 
