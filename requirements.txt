@@ -9,10 +9,10 @@ ctranslate2==4.6.1
 tokenizers==0.22.1
 sentencepiece==0.2.1
 
-# ===== PyTorch (CPU-only) =====
-torch==2.9.1
-torchaudio==2.9.1
--f https://download.pytorch.org/whl/cpu
+# ===== PyTorch (CPU-only) - 경량 버전 =====
+--index-url https://download.pytorch.org/whl/cpu
+torch==2.5.1
+torchaudio==2.5.1
 
 # ===== Audio Processing =====
 librosa==0.10.2.post1
