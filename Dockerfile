@@ -5,10 +5,19 @@ FROM python:3.12-slim as builder
 
 WORKDIR /app
 
-# 빌드에 필요한 패키지만 설치
+# 빌드에 필요한 패키지만 설치 (ffmpeg dev 포함)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
     g++ \
+    pkg-config \
+    ffmpeg \
+    libavformat-dev \
+    libavcodec-dev \
+    libavdevice-dev \
+    libavutil-dev \
+    libavfilter-dev \
+    libswscale-dev \
+    libswresample-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # requirements.txt를 두 개로 분리하여 복사
