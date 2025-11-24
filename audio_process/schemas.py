@@ -13,16 +13,18 @@ class RecordingListSchema(Schema):
 
 class SpeakerSegmentSchema(Schema):
     id: int
-    recordid : str
     speaker_label: str
     start_time: float
     end_time: float
-    text: str
+    text: str | None = None
+
+    emotion_label: str | None = None
+    emotion_confidence: float | None = None
 
 class SegmentUpdateSchema(Schema):
     id: int
-    text: str
-    is_customer: bool
+    text: str | None = None
+    is_counselor: bool
 
 class RecordingDetailSchema(Schema):
     session_id: str
@@ -31,7 +33,7 @@ class RecordingDetailSchema(Schema):
     segments: list[SpeakerSegmentSchema]
 
 class SpeakerUpdateSchema(Schema):
-    counselor_ids: list[int]
+    segments: list[SegmentUpdateSchema]
 
 
 

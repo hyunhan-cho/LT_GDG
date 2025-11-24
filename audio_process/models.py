@@ -47,9 +47,13 @@ class CallRecording(models.Model):
 class SpeakerSegment(models.Model):
     recording = models.ForeignKey(CallRecording, on_delete=models.CASCADE, related_name='segments')
     speaker_label = models.CharField(max_length=50)
+    is_counselor = models.BooleanField(default=False)
     start_time = models.FloatField()
     end_time = models.FloatField()
     text = models.TextField()
+    emotion_label = models.CharField(max_length=50, null=True, blank=True)
+    emotion_confidence = models.FloatField(null=True, blank=True)
+    
     
     class Meta:
         db_table = 'speaker_segments'

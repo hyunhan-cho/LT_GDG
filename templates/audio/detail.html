@@ -39,13 +39,14 @@
 <script>
     const SESSION_ID = '{{ session_id }}';
 </script>
+
 {% endblock %} {% block extra_js %}
 <script>
     document.addEventListener('DOMContentLoaded', () => {
         loadDetail();
     });
 
-    // 1. 상세 데이터 불러오기
+    // 1. 데이터 불러오기
     async function loadDetail() {
         const token = localStorage.getItem('access_token');
         if (!token) {
@@ -63,11 +64,8 @@
 
             const data = await response.json();
 
-            // 👇 여기서 id="fileName" 요소를 찾아 텍스트를 넣습니다.
             const fileNameEl = document.getElementById('fileName');
-            if (fileNameEl) {
-                fileNameEl.innerText = data.file_name;
-            }
+            if (fileNameEl) fileNameEl.innerText = data.file_name;
 
             renderSegments(data.segments);
         } catch (error) {
@@ -76,12 +74,11 @@
         }
     }
 
-    // 2. 화면 그리기 (리스트 렌더링)
+    // 2. 리스트 그리기 (감정 뱃지 포함)
     function renderSegments(segments) {
         const container = document.getElementById('segmentList');
-
         if (segments.length === 0) {
-            container.innerHTML = `<div class="text-center py-5 text-muted">분석된 텍스트가 없습니다.</div>`;
+            container.innerHTML = `<div class="text-center py-5 text-muted">데이터 없음</div>`;
             return;
         }
 
@@ -90,8 +87,12 @@
             const startFmt = formatTime(seg.start_time);
             const endFmt = formatTime(seg.end_time);
             const isCounselor = seg.speaker_label === 'counselor';
+
             const checkedAttr = isCounselor ? 'checked' : '';
             const rowClass = isCounselor ? 'bg-primary-subtle bg-opacity-10' : '';
+
+            // 감정 뱃지 생성
+            const emotionBadge = getEmotionBadge(seg.emotion_label, seg.emotion_confidence);
 
             html += `
                 <div class="list-group-item list-group-item-action ${rowClass} segment-row" 
@@ -104,12 +105,11 @@
                                    ${checkedAttr}
                                    onchange="toggleRowColor(${seg.id}, this.checked)">
                         </div>
-                        
                         <div class="col-2 text-muted small text-center">
                             ${startFmt} ~ ${endFmt}
                         </div>
-                        
                         <div class="col-9">
+                            <div class="mb-1">${emotionBadge}</div>
                             <textarea class="form-control border-0 bg-transparent text-input" 
                                       rows="1" 
                                       style="resize: none; overflow: hidden; box-shadow: none;"
@@ -120,71 +120,93 @@
             `;
         });
         container.innerHTML = html;
-
-        // 렌더링 직후, 텍스트 길이에 맞춰 높이 자동 조절
         document.querySelectorAll('.text-input').forEach((el) => autoResize(el));
     }
 
-    // 3. 텍스트 박스 높이 자동 조절 함수
+    // 3. 감정 뱃지 생성 함수
+    function getEmotionBadge(label, confidence) {
+        if (!label) return '';
+
+        const negative = ['불만', '분노', '격분', '짜증', '경미한 짜증', '실망', '좌절', '불안', '혐오', '피로'];
+        const positive = ['감사', '기쁨', '흥분', '자신감', '애정', '친절'];
+
+        let badgeClass = 'bg-secondary';
+        let icon = '';
+
+        if (negative.includes(label)) {
+            badgeClass = 'bg-danger';
+            icon = '🔥 ';
+        } else if (positive.includes(label)) {
+            badgeClass = 'bg-primary';
+            icon = '🍀 ';
+        }
+
+        const confPercent = confidence ? `(${Math.round(confidence * 100)}%)` : '';
+
+        return `<span class="badge ${badgeClass} rounded-pill mb-1">
+                    ${icon}${label} ${confPercent}
+                </span>`;
+    }
+
+    // 4. 저장 및 분석 로직
+    async function saveChanges() {
+        const token = localStorage.getItem('access_token');
+        const saveBtn = document.querySelector('button[onclick="saveChanges()"]');
+
+        saveBtn.disabled = true;
+        saveBtn.innerText = '💾 저장 중...';
+
+        const rows = document.querySelectorAll('.segment-row');
+        const updateData = [];
+        rows.forEach((row) => {
+            const id = parseInt(row.getAttribute('data-id'));
+            const isChecked = row.querySelector('.speaker-checkbox').checked;
+            const textValue = row.querySelector('.text-input').value;
+            updateData.push({ id, text: textValue, is_counselor: isChecked });
+        });
+
+        try {
+            // A. 저장 요청
+            const saveRes = await fetch(`/api/audio/${SESSION_ID}/confirm`, {
+                method: 'POST',
+                headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ segments: updateData }),
+            });
+
+            if (!saveRes.ok) throw new Error('저장 실패');
+
+            // B. 감정 분석 요청
+            saveBtn.innerText = '🤖 감정 분석 중...';
+            const emotionRes = await fetch(`/api/emotion/${SESSION_ID}/analyze`, {
+                method: 'POST',
+                headers: { Authorization: `Bearer ${token}` },
+            });
+
+            if (!emotionRes.ok) throw new Error('감정 분석 실패');
+
+            const emotionData = await emotionRes.json();
+
+            alert(`✅ 완료되었습니다!\n분석된 문장: ${emotionData.analyzed_count}개`);
+            window.location.reload();
+        } catch (error) {
+            console.error(error);
+            alert('오류 발생: ' + error.message);
+            saveBtn.disabled = false;
+            saveBtn.innerText = '💾 저장 및 완료';
+        }
+    }
+
     function autoResize(textarea) {
         textarea.style.height = 'auto';
         textarea.style.height = textarea.scrollHeight + 'px';
     }
 
-    // 4. 체크박스 클릭 시 배경색 토글
     window.toggleRowColor = function (id, isChecked) {
         const row = document.getElementById(`row-${id}`);
-        if (isChecked) {
-            row.classList.add('bg-primary-subtle', 'bg-opacity-10');
-        } else {
-            row.classList.remove('bg-primary-subtle', 'bg-opacity-10');
-        }
+        if (isChecked) row.classList.add('bg-primary-subtle', 'bg-opacity-10');
+        else row.classList.remove('bg-primary-subtle', 'bg-opacity-10');
     };
 
-    // 5. 변경 사항 저장 (화자 정보 + 텍스트 수정)
-    async function saveChanges() {
-        const token = localStorage.getItem('access_token');
-
-        // 화면의 모든 row 데이터를 수집
-        const rows = document.querySelectorAll('.segment-row');
-        const updateData = [];
-
-        rows.forEach((row) => {
-            const id = parseInt(row.getAttribute('data-id'));
-            const isChecked = row.querySelector('.speaker-checkbox').checked;
-            const textValue = row.querySelector('.text-input').value; // 수정된 텍스트
-
-            updateData.push({
-                id: id,
-                text: textValue,
-                is_counselor: isChecked,
-            });
-        });
-
-        try {
-            const response = await fetch(`/api/audio/${SESSION_ID}/confirm`, {
-                method: 'POST',
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ segments: updateData }),
-            });
-
-            if (response.ok) {
-                const resData = await response.json();
-                alert(`✅ 저장 완료! (${resData.updated_count}개 항목 수정됨)`);
-                window.location.href = '/'; // 메인으로 이동
-            } else {
-                alert('저장 실패. 다시 시도해주세요.');
-            }
-        } catch (error) {
-            console.error(error);
-            alert('서버 통신 오류');
-        }
-    }
-
-    // 6. 시간 포맷팅 (초 -> 00:00)
     function formatTime(seconds) {
         const m = Math.floor(seconds / 60);
         const s = Math.floor(seconds % 60);

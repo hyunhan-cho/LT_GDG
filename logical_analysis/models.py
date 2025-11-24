@@ -1,35 +1,27 @@
 from django.db import models
 from audio_process.models import SpeakerSegment
 
-class ClassificationResult(models.Model):
+class LogicalResult(models.Model):
     segment = models.OneToOneField(
-        SpeakerSegment, 
-        on_delete=models.CASCADE, 
-        related_name='logical_analysis',
-        verbose_name="분석 대상 구간"
-    )
-    
-    label = models.CharField(max_length=50)
-    label_type = models.CharField(max_length=20)
-    confidence = models.FloatField()
-    probabilities = models.JSONField(default=dict, blank=True) 
-    
-    action = models.CharField(
-        max_length=50, 
-        default='MONITOR', 
-        verbose_name='필터링 조치'
-    )
-    alert_level = models.CharField(
-        max_length=50, 
-        default='LOW', 
-        verbose_name='경고 레벨'
+        SpeakerSegment,
+        on_delete=models.CASCADE,
+        related_name='logical_analysis'
     )
 
-    created_at = models.DateTimeField(auto_now_add=True)
+    speech_speed = models.FloatField(null=True, blank=True)
+    pause_duration = models.FloatField(null=True, blank=True)
+    is_overlap = models.BooleanField(default=False)
 
-    def __str__(self):
-        return f"[{self.label}] {self.segment.text[:20]}..."
+    profanity_score = models.FloatField(null=True, blank=True)
+    threat_score = models.FloatField(null=True, blank=True)
+    insistence_score = models.FloatField(null=True, blank=True)
+    intent_label = models.CharField(max_length=100, null=True, blank=True)
+
+    manual_compliance_score = models.FloatField(null=True, blank=True)
+    empathy_score = models.FloatField(null=True, blank=True)
+
+    context_appropriateness = models.FloatField(null=True, blank=True)
 
     class Meta:
-        ordering = ['-created_at']
-        verbose_name = "AI 논리 분석 결과"
+        db_table = 'logical_results'
+        ordering = ['segment__start_time']
