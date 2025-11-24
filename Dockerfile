@@ -11,11 +11,36 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     g++ \
     && rm -rf /var/lib/apt/lists/*
 
-# Python 패키지 설치
+# requirements.txt를 두 개로 분리하여 복사
 COPY requirements.txt .
-RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir --user -r requirements.txt && \
-    pip install --no-cache-dir --user gunicorn
+
+# pip 업그레이드
+RUN pip install --no-cache-dir --upgrade pip
+
+# PyTorch CPU 버전 먼저 설치
+RUN pip install --no-cache-dir --user \
+    torch==2.1.0 \
+    torchaudio==2.1.0 \
+    --index-url https://download.pytorch.org/whl/cpu
+
+# 나머지 패키지 설치 (PyTorch 제외)
+RUN pip install --no-cache-dir --user \
+    Django==5.1.2 \
+    django-ninja==1.5.0 \
+    gunicorn==21.2.0 \
+    django-environ==0.11.2 \
+    django-storages==1.14.2 \
+    boto3==1.34.34 \
+    faster-whisper==1.0.0 \
+    transformers==4.36.0 \
+    librosa==0.10.1 \
+    soundfile==0.12.1 \
+    pydub==0.25.1 \
+    audioread==3.0.1 \
+    numpy==1.26.4 \
+    requests==2.32.3 \
+    PyYAML==6.0.2 \
+    python-dateutil==2.9.0
 
 # ========================================
 # Stage 2: 런타임 스테이지 (최종 이미지)
