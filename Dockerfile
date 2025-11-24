@@ -15,6 +15,7 @@ RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir \
     Django==5.1.2 \
     django-ninja==1.5.0 \
+    django-ninja-jwt==5.3.0 \
     gunicorn==21.2.0 \
     django-environ==0.11.2 \
     django-storages==1.14.2 \
