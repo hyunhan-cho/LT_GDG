@@ -23,17 +23,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # requirements.txt를 두 개로 분리하여 복사
 COPY requirements.txt .
 
-# pip 업그레이드
-RUN pip install --no-cache-dir --upgrade pip
-
-# PyTorch CPU 버전 먼저 설치
-RUN pip install --no-cache-dir --user \
-    torch==2.1.0 \
-    torchaudio==2.1.0 \
-    --index-url https://download.pytorch.org/whl/cpu
-
-# 나머지 패키지 설치 (PyTorch 제외)
-RUN pip install --no-cache-dir --user \
+# pip 업그레이드 및 Python 패키지 설치
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir --user \
     Django==5.1.2 \
     django-ninja==1.5.0 \
     gunicorn==21.2.0 \

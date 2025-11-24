@@ -3,14 +3,17 @@ KoBERT 기반 텍스트 감정 분석
 발화 텍스트를 입력받아 감정 라벨을 출력합니다.
 '''
 
-import torch
+try:
+    import torch
+except ImportError:
+    torch = None
 from transformers import BertTokenizer, BertForSequenceClassification
 from .label_map import label_map
 import os
 
 _tokenizer = None
 _model = None
-_device = "cuda" if torch.cuda.is_available() else "cpu"
+_device = "cuda" if (torch is not None and torch.cuda.is_available()) else "cpu"
 
 def load_text_model():
     global _tokenizer, _model, _device

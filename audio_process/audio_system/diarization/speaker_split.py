@@ -19,7 +19,10 @@ import json
 from huggingface_hub import login
 # torchaudio 대신 soundfile과 torch를 사용하여 오디오 로딩을 직접 처리합니다.
 import soundfile as sf 
-import torch
+try:
+    import torch
+except ImportError:
+    torch = None
 import numpy as np
 
 # 환경 변수 로드
