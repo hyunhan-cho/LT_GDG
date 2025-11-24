@@ -72,23 +72,21 @@ from django.shortcuts import get_object_or_404
 from .models import CallRecording, SpeakerSegment
 from .audio_system.diarization.speaker_split import transcribe_with_timestamps  # ✅ STT 전용 함수
 from .audio_system.utils.audio_utils import download_and_convert_to_wav, cleanup_temp_file
+from ninja_jwt.authentication import JWTAuth
+from datetime import date, datetime
+from typing import List
+from .schemas import *
 
 router = Router()
 
-@router.post("/upload")
+@router.post("/upload", auth=JWTAuth())
 def upload_and_process(request, file: UploadedFile = File(...)):
-    """
-    [Standard S3 Workflow]
-    1. 파일 업로드 (S3 자동 저장)
-    2. S3에서 다운로드 및 변환
-    3. AI 분석 (Whisper STT만)
-    4. 결과 저장 및 응답 반환
-    """
 
-    # 1. CallRecording DB 저장
+    print ("요청자: ", request.user)
     recording = CallRecording.objects.create(
         audio_file=file,
-        file_name=file.name
+        file_name=file.name,
+        uploader=request.user
     )
     
     local_wav_path = None
@@ -105,7 +103,7 @@ def upload_and_process(request, file: UploadedFile = File(...)):
         objs = [
             SpeakerSegment(
                 recording=recording,
-                speaker_label="unknown",   # ✅ 화자 분리 없음 → 기본값
+                speaker_label="unknown",
                 start_time=item['start'],
                 end_time=item['end'],
                 text=item['text']
@@ -124,12 +122,75 @@ def upload_and_process(request, file: UploadedFile = File(...)):
             "session_id": recording.session_id,
             "segments_count": len(objs),
             "s3_url": recording.audio_file.url,
-            "segments": segments_data   # ✅ Whisper 결과 직접 반환
+            "segments": segments_data 
         }
 
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
     finally:
-        # 7. 임시 파일 정리
         cleanup_temp_file(local_wav_path)
+
+
+@router.get("/list", response=List[RecordingListSchema], auth=JWTAuth())
+def get_recording_list(request, target_date: str = None):
+    if target_date:
+        try:
+            search_date = datetime.strptime(target_date, "%Y-%m-%d").date()
+        except ValueError:
+            search_date = date.today()
+    else:
+        search_date = date.today()
+
+    recordings = CallRecording.objects.filter(
+        uploader=request.user,
+        # created_at__date=search_date
+    ).order_by('-created_at')
+
+    return recordings
+
+@router.get('/{session_id}', response=RecordingDetailSchema, auth=JWTAuth())
+def get_recording_detail(request, session_id: str):
+    recording = get_object_or_404(CallRecording, session_id=session_id, uploader=request.user)
+    segments = recording.segments.all().order_by('start_time')
+    
+    return {
+        "session_id": recording.session_id,
+        "file_name": recording.file_name,
+        "created_at": recording.created_at,
+        "segments": [
+            SpeakerSegmentSchema(
+                id=seg.id,
+                recordid=recording.session_id,
+                speaker_label=seg.speaker_label,
+                start_time=seg.start_time,
+                end_time=seg.end_time,
+                text=seg.text
+            ) for seg in segments
+        ]
+    }
+
+@router.post('/{session_id}/confirm', auth=JWTAuth())
+def update_speaker_labels(request, session_id: str, payload: SpeakerUpdateSchema):
+    recording = get_object_or_404(CallRecording, session_id=session_id, uploader=request.user)
+    current_segments ={
+        seg.id: seg
+        for seg in SpeakerSegment.objects.filter(recording=recording)
+    }
+    update_list=[]
+
+    for item in payload.segments:
+        seg = current_segments.get(item.id)
+        if not seg:
+            continue
+        new_label = 'counselor' if item.is_customer else 'client'
+
+        if seg.text != item.text or seg.speaker_label != new_label:
+            seg.text = item.text
+            seg.speaker_label = new_label
+            update_list.append(seg)
+
+    if update_list:
+        SpeakerSegment.objects.bulk_update(update_list, ['speaker_label', 'text'])
+
+    return {"status": "success", "updated_segments": len(update_list)}

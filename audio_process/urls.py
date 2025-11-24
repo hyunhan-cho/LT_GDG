@@ -1,6 +1,9 @@
-# # from django.urls import path
-# # from .views import diarize_and_transcribe_view
+from django.urls import path
+from .views import upload_page, detail_page
 
-# urlpatterns = [
-# #    path("diarize/", diarize_and_transcribe_view, name="diarize_and_transcribe"),
-# ]
+app_name = 'audio'
+
+urlpatterns = [
+    path('upload/', upload_page, name='audio_upload'),
+    path('detail/<str:session_id>/', detail_page, name='detail'),
+]

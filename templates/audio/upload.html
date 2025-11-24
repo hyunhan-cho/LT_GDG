@@ -36,12 +36,14 @@
                 </form>
 
                 <div id="resultArea" class="d-none mt-4 alert alert-success">
-                    <h5>✅ 분석 완료!</h5>
-                    <p>세션 ID: <strong id="sessionId"></strong></p>
-                    <p>분석된 문장 수: <span id="segmentCount"></span>개</p>
+                    <h5 class="alert-heading">✅ 업로드 완료!</h5>
+                    <p>백그라운드에서 AI 분석이 시작되었습니다.</p>
+                    <p class="mb-0 text-muted small">세션 ID: <strong id="sessionId"></strong></p>
                     <hr />
-                    <a href="/" class="btn btn-outline-success btn-sm">메인으로</a>
-                    <a href="#" class="btn btn-success btn-sm">상세 결과 보기 (준비중)</a>
+                    <div class="d-flex justify-content-end gap-2">
+                        <a href="/" class="btn btn-outline-success btn-sm">🏠 메인으로</a>
+                        <a id="detailBtn" href="#" class="btn btn-success btn-sm shadow-sm"> 📝 결과 보정하기 </a>
+                    </div>
                 </div>
             </div>
         </div>
@@ -100,6 +102,9 @@
 
                 document.getElementById('sessionId').innerText = data.session_id;
                 document.getElementById('segmentCount').innerText = data.segments_count;
+
+                const detailBtn = document.getElementById('detailBtn');
+                detailBtn.href = `/audio/detail/${data.session_id}/`;
             } else {
                 alert('실패: ' + (data.message || JSON.stringify(data)));
                 location.reload();
