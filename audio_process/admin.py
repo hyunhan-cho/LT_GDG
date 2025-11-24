@@ -5,7 +5,7 @@ from .models import CallRecording, SpeakerSegment
 class SpeakerSegmentInline(admin.TabularInline):
     model = SpeakerSegment
     extra = 0
-    fields = ('speaker_label', 'time_range', 'text')
+    fields = ('speaker_label', 'time_range', 'text', 'emotion_label','emotion_confidence')
     readonly_fields = ('time_range',)
     can_delete = False
 

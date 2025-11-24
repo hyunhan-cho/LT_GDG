@@ -1,118 +1,131 @@
-{% extends 'base.html' %} {% block title %}분석 업로드 - LinguaTech{% endblock %} {% block content %}
+{% extends 'base.html' %} {% block title %}파일 업로드 - LinguaTech{% endblock %} {% block content %}
 <div class="row justify-content-center mt-5">
-    <div class="col-md-8">
-        <div class="card shadow">
-            <div class="card-header bg-white py-3">
-                <h4 class="mb-0">📂 녹음 파일 업로드</h4>
-            </div>
-            <div class="card-body p-5">
-                <form id="uploadForm">
-                    <div
-                        class="mb-4 text-center p-5 border border-2 border-dashed rounded"
-                        id="dropZone"
-                        style="background-color: #f8f9fa; border-color: #dee2e6"
-                    >
-                        <p class="display-4">🎧</p>
-                        <h5>파일을 이곳에 드래그하거나 클릭하세요</h5>
-                        <p class="text-muted small">지원 형식: .mp3, .m4a, .wav</p>
-                        <input type="file" id="fileInput" class="d-none" accept=".mp3,.m4a,.wav" required />
-                    </div>
+    <div class="col-md-6">
+        <div class="card shadow-lg border-0">
+            <div class="card-body p-5 text-center">
+                <h3 class="fw-bold text-primary mb-3">📂 통화 녹음 업로드</h3>
+                <p class="text-muted mb-4">WAV, MP3, M4A 파일을 지원합니다.</p>
 
-                    <div id="progressArea" class="d-none mb-4">
-                        <label class="form-label">업로드 및 분석 중...</label>
-                        <div class="progress">
-                            <div
-                                class="progress-bar progress-bar-striped progress-bar-animated"
-                                role="progressbar"
-                                style="width: 100%"
-                            ></div>
-                        </div>
-                        <small class="text-muted">파일 크기에 따라 시간이 소요될 수 있습니다.</small>
+                <form id="uploadForm" enctype="multipart/form-data">
+                    <div class="mb-4 text-start">
+                        <label for="audioFile" class="form-label fw-bold">파일 선택</label>
+                        <input
+                            type="file"
+                            class="form-control form-control-lg"
+                            id="audioFile"
+                            name="file"
+                            accept="audio/*"
+                            required
+                        />
                     </div>
-
                     <div class="d-grid">
-                        <button type="submit" class="btn btn-primary btn-lg" id="uploadBtn" disabled>분석 시작</button>
+                        <button type="submit" class="btn btn-primary btn-lg shadow-sm" id="uploadBtn">
+                            🚀 분석 시작하기
+                        </button>
                     </div>
                 </form>
 
-                <div id="resultArea" class="d-none mt-4 alert alert-success">
-                    <h5 class="alert-heading">✅ 업로드 완료!</h5>
-                    <p>백그라운드에서 AI 분석이 시작되었습니다.</p>
-                    <p class="mb-0 text-muted small">세션 ID: <strong id="sessionId"></strong></p>
-                    <hr />
-                    <div class="d-flex justify-content-end gap-2">
+                <div id="progressArea" class="d-none mt-4">
+                    <p class="mb-2 fw-bold text-primary">파일 업로드 및 분석 준비 중...</p>
+                    <div class="progress" style="height: 10px">
+                        <div
+                            class="progress-bar progress-bar-striped progress-bar-animated"
+                            role="progressbar"
+                            style="width: 100%"
+                        ></div>
+                    </div>
+                </div>
+
+                <div id="resultArea" class="d-none mt-4 alert alert-success text-start">
+                    <h5 class="alert-heading fw-bold"><i class="bi bi-check-circle-fill"></i> 업로드 성공!</h5>
+                    <p class="mb-1">분석 세션이 생성되었습니다.</p>
+                    <p class="small text-muted mb-3">Session ID: <strong id="sessionId"></strong></p>
+
+                    <div class="d-flex gap-2">
                         <a href="/" class="btn btn-outline-success btn-sm">🏠 메인으로</a>
                         <a id="detailBtn" href="#" class="btn btn-success btn-sm shadow-sm"> 📝 결과 보정하기 </a>
                     </div>
                 </div>
+
+                <div id="errorArea" class="d-none mt-4 alert alert-danger"></div>
             </div>
         </div>
     </div>
 </div>
 {% endblock %} {% block extra_js %}
 <script>
-    const dropZone = document.getElementById('dropZone');
-    const fileInput = document.getElementById('fileInput');
-    const uploadBtn = document.getElementById('uploadBtn');
-    const uploadForm = document.getElementById('uploadForm');
-
-    // 1. 드래그 앤 드롭 & 클릭 이벤트
-    dropZone.addEventListener('click', () => fileInput.click());
-
-    fileInput.addEventListener('change', function () {
-        if (this.files.length > 0) {
-            dropZone.querySelector('h5').innerText = '선택됨: ' + this.files[0].name;
-            dropZone.classList.add('border-primary');
-            uploadBtn.disabled = false;
-        }
-    });
-
-    // 2. 업로드 처리
-    uploadForm.addEventListener('submit', async function (e) {
+    document.getElementById('uploadForm').addEventListener('submit', async function (e) {
         e.preventDefault();
 
-        const file = fileInput.files[0];
-        if (!file) return;
+        // 요소 가져오기
+        const fileInput = document.getElementById('audioFile');
+        const uploadBtn = document.getElementById('uploadBtn');
+        const progressArea = document.getElementById('progressArea');
+        const resultArea = document.getElementById('resultArea');
+        const sessionIdEl = document.getElementById('sessionId'); // 👈 여기!
+        const detailBtn = document.getElementById('detailBtn'); // 👈 여기!
+        const errorArea = document.getElementById('errorArea');
 
-        const formData = new FormData();
-        formData.append('file', file);
+        // 파일 없으면 중단
+        if (!fileInput.files[0]) {
+            alert('파일을 선택해주세요.');
+            return;
+        }
 
-        // UI 변경 (로딩 중)
-        document.getElementById('progressArea').classList.remove('d-none');
-        uploadBtn.disabled = true;
-        dropZone.style.opacity = '0.5';
-
+        // 토큰 확인
         const token = localStorage.getItem('access_token');
+        if (!token) {
+            alert('로그인이 필요합니다.');
+            window.location.href = '/login';
+            return;
+        }
+
+        // UI 상태 변경 (로딩 시작)
+        uploadBtn.disabled = true;
+        uploadBtn.innerText = '⏳ 업로드 중...';
+        progressArea.classList.remove('d-none');
+        resultArea.classList.add('d-none');
+        errorArea.classList.add('d-none');
+
+        // 데이터 준비
+        const formData = new FormData();
+        formData.append('file', fileInput.files[0]);
 
         try {
             const response = await fetch('/api/audio/upload', {
                 method: 'POST',
                 headers: {
-                    Authorization: `Bearer ${token}`, // 인증 토큰
+                    Authorization: `Bearer ${token}`,
+                    // 주의: FormData 쓸 땐 'Content-Type' 헤더를 직접 설정하면 안 됨 (브라우저가 알아서 함)
                 },
-                body: formData, // FormData는 Content-Type 헤더 자동 설정됨
+                body: formData,
             });
 
             const data = await response.json();
 
             if (response.ok) {
-                // 성공 처리
-                document.getElementById('progressArea').classList.add('d-none');
-                document.getElementById('resultArea').classList.remove('d-none');
+                // ✅ 성공 시 처리
+                progressArea.classList.add('d-none'); // 로딩 숨김
+                resultArea.classList.remove('d-none'); // 결과 보임
 
-                document.getElementById('sessionId').innerText = data.session_id;
-                document.getElementById('segmentCount').innerText = data.segments_count;
+                // 1. 세션 ID 텍스트 넣기 (에러 났던 부분)
+                if (sessionIdEl) sessionIdEl.innerText = data.session_id;
 
-                const detailBtn = document.getElementById('detailBtn');
-                detailBtn.href = `/audio/detail/${data.session_id}/`;
+                // 2. 버튼 링크 연결
+                if (detailBtn) detailBtn.href = `/audio/detail/${data.session_id}/`;
+
+                uploadBtn.innerText = '완료';
             } else {
-                alert('실패: ' + (data.message || JSON.stringify(data)));
-                location.reload();
+                throw new Error(data.message || '업로드 실패');
             }
         } catch (error) {
-            console.error('Error:', error);
-            alert('오류 발생: ' + error);
-            location.reload();
+            console.error(error);
+            progressArea.classList.add('d-none');
+            errorArea.classList.remove('d-none');
+            errorArea.innerText = `❌ 오류 발생: ${error.message}`;
+
+            uploadBtn.disabled = false;
+            uploadBtn.innerText = '🚀 분석 시작하기';
         }
     });
 </script>

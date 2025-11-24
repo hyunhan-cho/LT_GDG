@@ -172,7 +172,9 @@ def get_recording_detail(request, session_id: str):
 
 @router.post('/{session_id}/confirm', auth=JWTAuth())
 def update_speaker_labels(request, session_id: str, payload: SpeakerUpdateSchema):
+    
     recording = get_object_or_404(CallRecording, session_id=session_id, uploader=request.user)
+    
     current_segments ={
         seg.id: seg
         for seg in SpeakerSegment.objects.filter(recording=recording)
@@ -183,7 +185,7 @@ def update_speaker_labels(request, session_id: str, payload: SpeakerUpdateSchema
         seg = current_segments.get(item.id)
         if not seg:
             continue
-        new_label = 'counselor' if item.is_customer else 'client'
+        new_label = 'counselor' if item.is_counselor else 'client'
 
         if seg.text != item.text or seg.speaker_label != new_label:
             seg.text = item.text
@@ -191,6 +193,6 @@ def update_speaker_labels(request, session_id: str, payload: SpeakerUpdateSchema
             update_list.append(seg)
 
     if update_list:
-        SpeakerSegment.objects.bulk_update(update_list, ['speaker_label', 'text'])
+        SpeakerSegment.objects.bulk_update(update_list, ['text','speaker_label'])
 
     return {"status": "success", "updated_segments": len(update_list)}

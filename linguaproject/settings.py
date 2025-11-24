@@ -53,6 +53,7 @@ INSTALLED_APPS = [
     'emotion_analysis',
     'audio_process',
     'accounts',
+    'solution_system'
 ]
 
 AWS_ACCESS_KEY_ID = env('AWS_ACCESS_KEY_ID')
